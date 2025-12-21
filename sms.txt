@@ -1,0 +1,86 @@
+$ cmake --build .
+Microsoft (R) Build Engine версии 16.10.1+2fd48ab73 для .NET Framework
+(C) Корпорация Майкрософт (Microsoft Corporation). Все права защищены.
+
+  1>Checking Build System
+  Building Custom Rule D:/gemini/maga_diplom/gtest/CMakeLists.txt
+  gtest-all.cc
+D:\gemini\maga_diplom\gtest\gtest.h(9690,34): error C2039: "tr1": не является членом "std". [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30037\include\set(23): message : см. объявление "std" [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9690,34): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9695,27): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9700,27): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9705,27): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9710,27): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9715,27): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9722,27): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9729,27): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9736,27): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9743,27): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(9751,18): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(13778,46): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(13888): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductGenerator2<T1,T2>" [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj 
+]
+D:\gemini\maga_diplom\gtest\gtest.h(13780,18): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(13893,46): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14020): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductGenerator3<T1,T2,T3>" [D:\gemini\maga_diplom\build\gtest\gtest.vcxp
+roj]
+D:\gemini\maga_diplom\gtest\gtest.h(13895,18): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14025,46): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14171): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductGenerator4<T1,T2,T3,T4>" [D:\gemini\maga_diplom\build\gtest\gtest.v 
+cxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14027,18): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14176,46): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14338): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductGenerator5<T1,T2,T3,T4,T5>" [D:\gemini\maga_diplom\build\gtest\gtes 
+t.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14178,18): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14344,46): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14524): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductGenerator6<T1,T2,T3,T4,T5,T6>" [D:\gemini\maga_diplom\build\gtest\g 
+test.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14347,18): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14530,46): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14727): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductGenerator7<T1,T2,T3,T4,T5,T6,T7>" [D:\gemini\maga_diplom\build\gtes 
+t\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14533,18): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14733,46): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14949): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductGenerator8<T1,T2,T3,T4,T5,T6,T7,T8>" [D:\gemini\maga_diplom\build\g 
+test\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14736,18): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14955,46): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15188): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductGenerator9<T1,T2,T3,T4,T5,T6,T7,T8,T9>" [D:\gemini\maga_diplom\buil 
+d\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(14958,18): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15194,46): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15444): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductGenerator10<T1,T2,T3,T4,T5,T6,T7,T8,T9,T10>" [D:\gemini\maga_diplom 
+\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15197,18): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15459,35): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15472): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductHolder2<Generator1,Generator2>" [D:\gemini\maga_diplom\build\gtest\ 
+gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15481,35): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15496): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductHolder3<Generator1,Generator2,Generator3>" [D:\gemini\maga_diplom\b 
+uild\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15506,35): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15523): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductHolder4<Generator1,Generator2,Generator3,Generator4>" [D:\gemini\ma 
+ga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15533,35): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15552): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductHolder5<Generator1,Generator2,Generator3,Generator4,Generator5>" [D 
+:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15564,35): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15585): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductHolder6<Generator1,Generator2,Generator3,Generator4,Generator5,Gene 
+rator6>" [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15597,35): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15621): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductHolder7<Generator1,Generator2,Generator3,Generator4,Generator5,Gene 
+rator6,Generator7>" [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15635,35): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15661): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductHolder8<Generator1,Generator2,Generator3,Generator4,Generator5,Gene 
+rator6,Generator7,Generator8>" [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15676,35): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15705): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductHolder9<Generator1,Generator2,Generator3,Generator4,Generator5,Gene 
+rator6,Generator7,Generator8,Generator9>" [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15720,35): error C3083: tr1: символ слева от "::" должен представлять тип [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+D:\gemini\maga_diplom\gtest\gtest.h(15752): message : выполняется компиляция ссылки на экземпляр класс шаблон функции "testing::internal::CartesianProductHolder10<Generator1,Generator2,Generator3,Generator4,Generator5,Gen 
+erator6,Generator7,Generator8,Generator9,Generator10>" [D:\gemini\maga_diplom\build\gtest\gtest.vcxproj]
+  Building Custom Rule D:/gemini/maga_diplom/src/CMakeLists.txt
+  matrix.cpp
+  matrix_lib.vcxproj -> D:\gemini\maga_diplom\build\lib\Debug\matrix_lib.lib

@@ -1,0 +1,16 @@
+{
+    "name": "Maga Diplom C++ Environment",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind,consistency=cached",
+    "workspaceFolder": "/app",
+    "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash"
+    },
+    "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools"
+    ],
+    "postCreateCommand": "echo 'Container created. Ready to build.'"
+}

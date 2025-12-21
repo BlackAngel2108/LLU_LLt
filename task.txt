@@ -1,0 +1,84 @@
+$ cmake --build .
+Microsoft (R) Build Engine версии 16.10.1+2fd48ab73 для .NET Framework
+(C) Корпорация Майкрософт (Microsoft Corporation). Все права защищены.
+
+  1>Checking Build System
+  Building Custom Rule D:/gemini/build/_deps/googletest-src/googlemock/CMakeLists
+  .txt
+  gtest-all.cc
+  gmock-all.cc
+  Создание кода...
+  gmock.vcxproj -> D:\gemini\build\lib\Debug\gmock.lib
+  Building Custom Rule D:/gemini/build/_deps/googletest-src/googlemock/CMakeLists
+  .txt
+  gtest-all.cc
+  gmock-all.cc
+  gmock_main.cc
+  Создание кода...
+  gmock_main.vcxproj -> D:\gemini\build\lib\Debug\gmock_main.lib
+  Building Custom Rule D:/gemini/build/_deps/googletest-src/googletest/CMakeLists
+  .txt
+  gtest-all.cc
+  gtest.vcxproj -> D:\gemini\build\lib\Debug\gtest.lib
+  Building Custom Rule D:/gemini/build/_deps/googletest-src/googletest/CMakeLists
+  .txt
+  gtest_main.cc
+  gtest_main.vcxproj -> D:\gemini\build\lib\Debug\gtest_main.lib
+  Building Custom Rule D:/gemini/CMakeLists.txt
+  matrix.cpp
+  matrix_lib.vcxproj -> D:\gemini\build\Debug\matrix_lib.lib
+  1>
+  Test project D:/gemini/build/tests
+      Start 1: run_tests_NOT_BUILT
+  Could not find executable run_tests_NOT_BUILT
+  Unable to find executable: run_tests_NOT_BUILT
+  Looked in the following places:
+  run_tests_NOT_BUILT
+  run_tests_NOT_BUILT.exe
+  Debug/run_tests_NOT_BUILT
+  Debug/run_tests_NOT_BUILT.exe
+  Debug/run_tests_NOT_BUILT
+  Debug/run_tests_NOT_BUILT.exe
+  1/1 Test #1: run_tests_NOT_BUILT ..............***Not Run   0.00 sec
+  
+  0% tests passed, 1 tests failed out of 1
+
+  Total Test time (real) =   0.01 sec
+
+  The following tests FAILED:
+          1 - run_tests_NOT_BUILT (Not Run)
+  Errors while running CTest
+  Output from these tests are in: D:/gemini/build/tests/Testing/Temporary/LastTes 
+  t.log
+  Use "--rerun-failed --output-on-failure" to re-run the failed cases verbosely.  
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\V
+C\v160\Microsoft.CppCommon.targets(155,5): error MSB3073: выход из команды "setlo 
+cal [D:\gemini\build\tests\run_tests.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\V 
+C\v160\Microsoft.CppCommon.targets(155,5): error MSB3073: "C:\Program Files\CMake 
+\bin\ctest.exe" --force-new-ctest-process -C Debug [D:\gemini\build\tests\run_tes 
+ts.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\V 
+C\v160\Microsoft.CppCommon.targets(155,5): error MSB3073: if %errorlevel% neq 0 g 
+oto :cmEnd [D:\gemini\build\tests\run_tests.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\V 
+C\v160\Microsoft.CppCommon.targets(155,5): error MSB3073: :cmEnd [D:\gemini\build 
+\tests\run_tests.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\V 
+C\v160\Microsoft.CppCommon.targets(155,5): error MSB3073: endlocal & call :cmErro 
+rLevel %errorlevel% & goto :cmDone [D:\gemini\build\tests\run_tests.vcxproj]      
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\V 
+C\v160\Microsoft.CppCommon.targets(155,5): error MSB3073: :cmErrorLevel [D:\gemin 
+i\build\tests\run_tests.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\V 
+C\v160\Microsoft.CppCommon.targets(155,5): error MSB3073: exit /b %1 [D:\gemini\b 
+uild\tests\run_tests.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\V 
+C\v160\Microsoft.CppCommon.targets(155,5): error MSB3073: :cmDone [D:\gemini\buil 
+d\tests\run_tests.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\V 
+C\v160\Microsoft.CppCommon.targets(155,5): error MSB3073: if %errorlevel% neq 0 g 
+oto :VCEnd [D:\gemini\build\tests\run_tests.vcxproj]
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\V 
+C\v160\Microsoft.CppCommon.targets(155,5): error MSB3073: :VCEnd" с кодом 8. [D:\ 
+gemini\build\tests\run_tests.vcxproj]
