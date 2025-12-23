@@ -5,9 +5,9 @@ import sys
 def run_benchmark():
     # --- Конфигурация ---
     # Размеры матриц для тестирования
-    matrix_sizes = [1024,2048] 
+    matrix_sizes = [256,512,1024] 
     # Размеры блоков
-    block_sizes = [32, 64]
+    block_sizes = [16, 32, 64]
     # Количество потоков для параллельных версий
     thread_counts = [1, 2, 4, 8]
     # Количество запусков для каждого теста для поиска минимального времени
@@ -35,7 +35,7 @@ def run_benchmark():
     print("Starting benchmarks...")
 
     with open(results_file, "w") as f_results: # Open in write mode to create/clear header
-        f_results.write("Algorithm,MatrixSize,Threads,MinTime_ms\n")
+        f_results.write("Algorithm,MatrixSize,Threads,Block,MinTime_ms\n")
 
     for size in matrix_sizes:
         for bs in block_sizes:
@@ -87,7 +87,7 @@ def run_benchmark():
 
                     # Записываем лучший результат
                     with open(results_file, "a") as f_results:
-                        f_results.write(f"{algo},{size},{threads},{min_time}\n")
+                        f_results.write(f"{algo},{size},{threads},{bs},{min_time}\n")
     
     print(f"\nBenchmarking complete. Results saved to {results_file}")
 

@@ -37,7 +37,7 @@ void run_decomposition(const std::string& type, int size, int block_size, int th
     std::chrono::duration<double, std::milli> duration = end - start;
 
     // Вывод в формате: АЛГОРИТМ,РАЗМЕР,ПОТОКИ,ВРЕМЯ_мс
-    std::cout << type << "," << size << "," << threads << "," << duration.count() << std::endl;
+    std::cout << type << "," << size << "," << threads << "," << block_size << "," << duration.count() << std::endl;
 }
 
 int main(int argc, char* argv[]) {
