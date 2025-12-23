@@ -23,13 +23,13 @@ void run_decomposition(const std::string& type, int size, int block_size, int th
         A.lu_simple();
     } else if (type == "lu_blocked") {
         A.lu_blocked(block_size);
-    } else if (type == "lu_parallel") {
+    } else if (type == "lu_blocked_parallel") {
         A.lu_blocked_parallel(block_size);
     } else if (type == "cholesky_simple") {
         A.cholesky();
     } else if (type == "cholesky_blocked") {
         A.cholesky_blocked(block_size);
-    } else if (type == "cholesky_parallel") {
+    } else if (type == "cholesky_blocked_parallel") {
         A.cholesky_blocked_parallel(block_size);
     }
 

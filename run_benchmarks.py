@@ -5,7 +5,7 @@ import sys
 def run_benchmark():
     # --- Конфигурация ---
     # Размеры матриц для тестирования
-    matrix_sizes = [256, 512] 
+    matrix_sizes = [1024,2048] 
     # Размеры блоков
     block_sizes = [32, 64]
     # Количество потоков для параллельных версий
@@ -13,13 +13,13 @@ def run_benchmark():
     # Количество запусков для каждого теста для поиска минимального времени
     runs_per_setting = 3
     # Имя исполняемого файла
-    executable = "benchmark_runner.exe"
+    executable_path = "LLU_LLt/build/bin/benchmark_runner.exe" # Updated path
     # Файл для результатов
     results_file = "results.txt"
 
     # Проверяем, существует ли исполняемый файл
-    if not os.path.exists(f"build/bin/{executable}"):
-        print(f"Error: Executable not found at build/bin/{executable}")
+    if not os.path.exists(executable_path):
+        print(f"Error: Executable not found at {executable_path}")
         print("Please build the project first using CMake and your build tool.")
         sys.exit(1)
 
@@ -28,20 +28,26 @@ def run_benchmark():
         os.remove(results_file)
 
     algorithms = [
-        "lu_simple", "lu_blocked", "lu_parallel",
-        "cholesky_simple", "cholesky_blocked", "cholesky_parallel"
+        "lu_simple", "lu_blocked", "lu_blocked_parallel", # Corrected algorithm names
+        "cholesky_simple", "cholesky_blocked", "cholesky_blocked_parallel" # Corrected algorithm names
     ]
 
     print("Starting benchmarks...")
+
+    with open(results_file, "w") as f_results: # Open in write mode to create/clear header
+        f_results.write("Algorithm,MatrixSize,Threads,MinTime_ms\n")
 
     for size in matrix_sizes:
         for bs in block_sizes:
             for algo in algorithms:
                 
                 current_threads = [1]
+                # Use only thread_counts for parallel versions
                 if "parallel" in algo:
                     current_threads = thread_counts
-
+                elif "blocked" in algo and "lu" in algo: # For non-parallel blocked LU, still use various threads to see if any implicit threading happens
+                    current_threads = thread_counts
+                
                 for threads in current_threads:
                     if "simple" in algo and threads > 1:
                         continue # Пропускаем многопоточные запуски для простых версий
@@ -51,7 +57,7 @@ def run_benchmark():
 
                     for _ in range(runs_per_setting):
                         command = [
-                            f"build/bin/{executable}",
+                            executable_path, # Use the explicit path
                             algo,
                             str(size),
                             str(bs),
@@ -80,8 +86,8 @@ def run_benchmark():
                     print(f"    Min time over {runs_per_setting} runs: {min_time:.4f} ms")
 
                     # Записываем лучший результат
-                    with open(results_file, "a") as f:
-                        f.write(f"{algo},{size},{threads},{min_time}\n")
+                    with open(results_file, "a") as f_results:
+                        f_results.write(f"{algo},{size},{threads},{min_time}\n")
     
     print(f"\nBenchmarking complete. Results saved to {results_file}")
 

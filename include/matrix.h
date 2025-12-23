@@ -38,11 +38,13 @@ public:
     std::pair<Matrix, Matrix> lu_blocked(int block_size) const;
     std::pair<Matrix, Matrix> lu_blocked_parallel(int block_size) const;
 
+    std::pair<Matrix, Matrix> lu_simple_parallel(); // New
     // Функция разложения Холецкого (LLt)
     // Возвращает нижнетреугольную матрицу L
     Matrix cholesky() const;
     Matrix cholesky_blocked(int block_size) const;
     Matrix cholesky_blocked_parallel(int block_size) const;
+    Matrix cholesky_simple_parallel(); // New
 
 private:
     int rows_;
