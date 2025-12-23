@@ -3,7 +3,9 @@
 #include <random>
 #include <algorithm>
 #include <iomanip>
-#include <cmath> // For std::sqrt
+#include <cmath>   // For std::sqrt
+#include <numeric> // Для std::iota
+#include <cstring> // Для std::memcpy
 
 Matrix::Matrix(int rows, int cols) : rows_(rows), cols_(cols), data_(rows * cols, 0.0)
 {
@@ -112,80 +114,78 @@ std::pair<Matrix, Matrix> Matrix::lu_simple() const
 std::pair<Matrix, Matrix> Matrix::lu_blocked(int block_size) const
 {
     if (rows_ != cols_)
-    {
         throw std::runtime_error("LU-разложение возможно только для квадратных матриц.");
-    }
 
     int n = rows_;
-    Matrix LU_combined = *this; // Используем комбинированное хранение L и U [3]
+
+    // Копия данных для in-place LU
+    std::vector<double> A = data_;
 
     for (int k = 0; k < n; k += block_size)
     {
-        int kb = std::min(n, k + block_size); // Граница текущего блока
+        int k_end = std::min(k + block_size, n);
 
-        // 1. Обработка панели (аналогично cholesky_blocked [4])
-        // Выполняем обычное LU внутри текущего столбца блоков
-        for (int i = k; i < kb; ++i)
+        // ===== ЭТАП 1: Факторизация панели =====
+        for (int i = k; i < k_end; ++i)
         {
-            if (LU_combined(i, i) == 0)
-                throw std::runtime_error("Деление на ноль.");
+            double pivot = A[i * n + i];
+            if (std::abs(pivot) < 1e-15)
+                throw std::runtime_error("Нулевой элемент на диагонали.");
 
-            for (int j = i + 1; j < n; ++j)
+            double inv_pivot = 1.0 / pivot;
+
+            // Вычисляем L
+            for (int row = i + 1; row < n; ++row)
+                A[row * n + i] *= inv_pivot;
+
+            // Обновление панели
+            for (int row = i + 1; row < n; ++row)
             {
-                LU_combined(j, i) /= LU_combined(i, i); // Вычисляем множители L
-                double factor = LU_combined(j, i);
-
-                // Обновляем только элементы внутри текущей панели (до kb)
-                for (int l = i + 1; l < kb; ++l)
-                {
-                    LU_combined(j, l) -= factor * LU_combined(i, l);
-                }
+                double Lik = A[row * n + i];
+                for (int col = i + 1; col < k_end; ++col)
+                    A[row * n + col] -= Lik * A[i * n + col];
             }
         }
 
-        // 2. Обновление текущей строки блоков (U-часть справа от диагонального блока)
-        for (int i = k; i < kb; ++i)
+        // ===== ЭТАП 2: Обновление U-части справа =====
+        for (int i = k; i < k_end; ++i)
         {
-            for (int j = kb; j < n; ++j)
+            for (int l = k; l < i; ++l)
             {
-                for (int l = k; l < i; ++l)
-                {
-                    LU_combined(i, j) -= LU_combined(i, l) * LU_combined(l, j);
-                }
+                double L_il = A[i * n + l];
+                for (int j = k_end; j < n; ++j)
+                    A[i * n + j] -= L_il * A[l * n + j];
             }
         }
 
-        // 3. Обновление оставшейся подматрицы (Trailing Submatrix Update) [5]
-
-        for (int i = kb; i < n; ++i)
+        // ===== ЭТАП 3: Обновление хвостовой подматрицы =====
+        for (int i = k_end; i < n; ++i)
         {
-            for (int j = kb; j < n; ++j)
+            for (int l = k; l < k_end; ++l)
             {
-                double sum = 0.0;
-                for (int l = k; l < kb; ++l)
-                {
-                    sum += LU_combined(i, l) * LU_combined(l, j);
-                }
-                LU_combined(i, j) -= sum;
+                double L_il = A[i * n + l];
+                for (int j = k_end; j < n; ++j)
+                    A[i * n + j] -= L_il * A[l * n + j];
             }
         }
     }
 
-    // Извлечение матриц L и U (сохраняем вашу оригинальную логику из источника [3, 6])
+    // ===== Извлечение L и U =====
     Matrix L(n, n);
     Matrix U(n, n);
+
     for (int i = 0; i < n; ++i)
     {
         L(i, i) = 1.0;
-        for (int j = 0; j < i; ++j)
+        for (int j = 0; j < n; ++j)
         {
-            L(i, j) = LU_combined(i, j);
-        }
-        for (int j = i; j < n; ++j)
-        {
-            U(i, j) = LU_combined(i, j);
+            if (i > j)
+                L(i, j) = A[i * n + j];
+            else
+                U(i, j) = A[i * n + j];
         }
     }
+
     return {L, U};
 }
 
@@ -193,81 +193,75 @@ std::pair<Matrix, Matrix> Matrix::lu_blocked(int block_size) const
 std::pair<Matrix, Matrix> Matrix::lu_blocked_parallel(int block_size) const
 {
     if (rows_ != cols_)
-    {
         throw std::runtime_error("LU-разложение возможно только для квадратных матриц.");
-    }
 
     int n = rows_;
-    Matrix LU_combined = *this; // Используем комбинированное хранение L и U [3]
+    std::vector<double> A = data_;
 
     for (int k = 0; k < n; k += block_size)
     {
-        int kb = std::min(n, k + block_size); // Граница текущего блока
+        int k_end = std::min(k + block_size, n);
 
-        // 1. Обработка панели (аналогично cholesky_blocked [4])
-        // Выполняем обычное LU внутри текущего столбца блоков
-        for (int i = k; i < kb; ++i)
+        // ===== ЭТАП 1: Панель (последовательно) =====
+        for (int i = k; i < k_end; ++i)
         {
-            if (LU_combined(i, i) == 0)
-                throw std::runtime_error("Деление на ноль.");
+            double pivot = A[i * n + i];
+            if (std::abs(pivot) < 1e-15)
+                throw std::runtime_error("Нулевой элемент на диагонали.");
 
-            for (int j = i + 1; j < n; ++j)
+            double inv_pivot = 1.0 / pivot;
+
+            for (int row = i + 1; row < n; ++row)
+                A[row * n + i] *= inv_pivot;
+
+            for (int row = i + 1; row < n; ++row)
             {
-                LU_combined(j, i) /= LU_combined(i, i); // Вычисляем множители L
-                double factor = LU_combined(j, i);
-
-                // Обновляем только элементы внутри текущей панели (до kb)
-                for (int l = i + 1; l < kb; ++l)
-                {
-                    LU_combined(j, l) -= factor * LU_combined(i, l);
-                }
+                double Lik = A[row * n + i];
+                for (int col = i + 1; col < k_end; ++col)
+                    A[row * n + col] -= Lik * A[i * n + col];
             }
         }
 
-        // 2. Обновление текущей строки блоков (U-часть справа от диагонального блока)
-        for (int i = k; i < kb; ++i)
+        // ===== ЭТАП 2: U-часть справа =====
+        for (int i = k; i < k_end; ++i)
         {
-            for (int j = kb; j < n; ++j)
+            for (int l = k; l < i; ++l)
             {
-                for (int l = k; l < i; ++l)
-                {
-                    LU_combined(i, j) -= LU_combined(i, l) * LU_combined(l, j);
-                }
+                double L_il = A[i * n + l];
+                for (int j = k_end; j < n; ++j)
+                    A[i * n + j] -= L_il * A[l * n + j];
             }
         }
 
-// 3. Обновление оставшейся подматрицы (Trailing Submatrix Update) [5]
-// Это самая вычислительно затратная часть, которую мы распараллеливаем
-#pragma omp parallel for collapse(2) if (n - kb > block_size)
-        for (int i = kb; i < n; ++i)
+// ===== ЭТАП 3: Хвостовая подматрица (параллельно) =====
+#pragma omp parallel for schedule(static)
+        for (int i = k_end; i < n; ++i)
         {
-            for (int j = kb; j < n; ++j)
+            for (int l = k; l < k_end; ++l)
             {
-                double sum = 0.0;
-                for (int l = k; l < kb; ++l)
-                {
-                    sum += LU_combined(i, l) * LU_combined(l, j);
-                }
-                LU_combined(i, j) -= sum;
+                double L_il = A[i * n + l];
+                for (int j = k_end; j < n; ++j)
+                    A[i * n + j] -= L_il * A[l * n + j];
             }
         }
     }
 
-    // Извлечение матриц L и U (сохраняем вашу оригинальную логику из источника [3, 6])
+    // ===== Извлечение L и U =====
     Matrix L(n, n);
     Matrix U(n, n);
+
     for (int i = 0; i < n; ++i)
     {
         L(i, i) = 1.0;
-        for (int j = 0; j < i; ++j)
+        for (int j = 0; j < n; ++j)
         {
-            L(i, j) = LU_combined(i, j);
-        }
-        for (int j = i; j < n; ++j)
-        {
-            U(i, j) = LU_combined(i, j);
+            if (i > j)
+                L(i, j) = A[i * n + j];
+            else
+                U(i, j) = A[i * n + j];
         }
     }
+
     return {L, U};
 }
 
@@ -447,7 +441,10 @@ Matrix Matrix::cholesky_blocked(int block_size) const
                 double val = L_result(j, l);
                 d -= val * val;
             }
-            d = std::sqrt(d > 0 ? d : 1e-9);
+            if (d <= 0.0)
+                throw std::runtime_error("Матрица не является положительно определенной.");
+            d = std::sqrt(d);
+
             L_result(j, j) = d;
             double invDiag = 1.0 / d;
             for (int i = j + 1; i < n; ++i)
@@ -505,7 +502,9 @@ Matrix Matrix::cholesky_blocked_parallel(int block_size) const
                 double val = L_result(j, l);
                 d -= val * val;
             }
-            d = std::sqrt(d > 0 ? d : 1e-9);
+            if (d <= 0.0)
+                throw std::runtime_error("Матрица не является положительно определенной.");
+            d = std::sqrt(d);
             L_result(j, j) = d;
             double invDiag = 1.0 / d;
             for (int i = j + 1; i < n; ++i)
