@@ -1,0 +1,32 @@
+[
+{
+  "directory": "/home/luba/projects/LU_LLt/build/src",
+  "command": "/opt/intel/oneapi/compiler/latest/bin/icpx -DUSE_BLAS -DUSE_LAPACK -I/home/luba/projects/LU_LLt/include -I/home/luba/projects/LU_LLt/gtest  -qopenmp -g -std=gnu++14 -fopenmp -o CMakeFiles/LU_LLt_project.dir/matrix.cpp.o -c /home/luba/projects/LU_LLt/src/matrix.cpp",
+  "file": "/home/luba/projects/LU_LLt/src/matrix.cpp",
+  "output": "src/CMakeFiles/LU_LLt_project.dir/matrix.cpp.o"
+},
+{
+  "directory": "/home/luba/projects/LU_LLt/build/src",
+  "command": "/opt/intel/oneapi/compiler/latest/bin/icpx  -I/home/luba/projects/LU_LLt/include -I/home/luba/projects/LU_LLt/gtest  -qopenmp -g -std=gnu++14 -fopenmp -o CMakeFiles/LU_LLt_project_benchmarks.dir/benchmarks.cpp.o -c /home/luba/projects/LU_LLt/src/benchmarks.cpp",
+  "file": "/home/luba/projects/LU_LLt/src/benchmarks.cpp",
+  "output": "src/CMakeFiles/LU_LLt_project_benchmarks.dir/benchmarks.cpp.o"
+},
+{
+  "directory": "/home/luba/projects/LU_LLt/build/gtest",
+  "command": "/opt/intel/oneapi/compiler/latest/bin/icpx -D_HAS_TR1=1 -I/home/luba/projects/LU_LLt/include -I/home/luba/projects/LU_LLt/gtest  -qopenmp -g -std=gnu++14 -o CMakeFiles/gtest.dir/gtest-all.cc.o -c /home/luba/projects/LU_LLt/gtest/gtest-all.cc",
+  "file": "/home/luba/projects/LU_LLt/gtest/gtest-all.cc",
+  "output": "gtest/CMakeFiles/gtest.dir/gtest-all.cc.o"
+},
+{
+  "directory": "/home/luba/projects/LU_LLt/build/test",
+  "command": "/opt/intel/oneapi/compiler/latest/bin/icpx  -I/home/luba/projects/LU_LLt/include -I/home/luba/projects/LU_LLt/gtest -I/home/luba/projects/LU_LLt  -qopenmp -g -std=gnu++14 -fopenmp -o CMakeFiles/test_LU_LLt_project.dir/main_test.cpp.o -c /home/luba/projects/LU_LLt/test/main_test.cpp",
+  "file": "/home/luba/projects/LU_LLt/test/main_test.cpp",
+  "output": "test/CMakeFiles/test_LU_LLt_project.dir/main_test.cpp.o"
+},
+{
+  "directory": "/home/luba/projects/LU_LLt/build/benchmark",
+  "command": "/opt/intel/oneapi/compiler/latest/bin/icpx  -I/home/luba/projects/LU_LLt/include -I/home/luba/projects/LU_LLt/gtest  -qopenmp -g -std=gnu++14 -fopenmp -o CMakeFiles/benchmark_runner.dir/main_benchmark.cpp.o -c /home/luba/projects/LU_LLt/benchmark/main_benchmark.cpp",
+  "file": "/home/luba/projects/LU_LLt/benchmark/main_benchmark.cpp",
+  "output": "benchmark/CMakeFiles/benchmark_runner.dir/main_benchmark.cpp.o"
+}
+]

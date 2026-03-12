@@ -13,7 +13,7 @@ def run_benchmark():
     # Количество запусков для каждого теста для поиска минимального времени
     runs_per_setting = 3
     # Имя исполняемого файла
-    executable_path = "LLU_LLt/build/bin/benchmark_runner.exe" # Updated path
+    executable_path = "LU_LLt/build/bin/benchmark_runner.exe" # Updated path
     # Файл для результатов
     results_file = "results.txt"
 

@@ -1,0 +1,32 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Benchmarks",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/LU_LLt_project_benchmarks",
+            "args": ["${input:benchmarkMode}"],
+            "cwd": "${workspaceFolder}",
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+            // preLaunchTask УДАЛЕН - не пересобираем!
+        }
+    ],
+    "inputs": [
+        {
+            "id": "benchmarkMode",
+            "type": "pickString",
+            "description": "Выберите режим:",
+            "options": ["my", "openblas", "both", "compare"],
+            "default": "compare"
+        }
+    ]
+}

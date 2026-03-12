@@ -1,0 +1,39 @@
+{
+    // Базовые настройки CMake
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.generator": "Unix Makefiles",
+    "cmake.parallelJobs": 8,
+    
+    // Окружение для Intel компилятора
+    "cmake.environment": {
+        "PATH": "/opt/intel/oneapi/compiler/latest/linux/bin:${env:PATH}"
+    },
+    
+    // Управление сборкой
+    "cmake.buildBeforeRun": false,  // НЕ собирать перед запуском!
+    
+    // Настройки типов сборки
+    "cmake.configureSettings": {
+        "CMAKE_BUILD_TYPE": "${buildType}"  // берет из выбранного варианта
+    },
+    
+    // Варианты сборки (то, что видно в синей строке)
+    "cmake.defaultVariants": {
+        "buildType": {
+            "default": "Debug",
+            "choices": {
+                "Debug": "-DCMAKE_BUILD_TYPE=Debug",
+                "Release": "-DCMAKE_BUILD_TYPE=Release",
+                "RelWithDebInfo": "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+                "MinSizeRel": "-DCMAKE_BUILD_TYPE=MinSizeRel"
+            }
+        }
+    },
+    
+    // Дополнительные полезные настройки
+    "cmake.ctest.allowParallelJobs": true,
+    "cmake.ctest.parallelJobs": 8,
+    "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
+    "cmake.configureOnEdit": false,
+    "cmake.configureOnOpen": true
+}

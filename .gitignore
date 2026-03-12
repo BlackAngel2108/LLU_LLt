@@ -5,11 +5,13 @@
 
 build
 build2
+build_release
 matrix
 bin_matrix
 *.csv
 *.png
 *.1
+*.txt
 
 
 # User-specific files

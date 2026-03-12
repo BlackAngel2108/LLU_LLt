@@ -1,0 +1,17 @@
+[
+    {
+        "name": "Intel oneAPI 2025.1",
+        "compilers": {
+            "C": "/opt/intel/oneapi/compiler/latest/bin/icx",
+            "CXX": "/opt/intel/oneapi/compiler/latest/bin/icpx"
+        },
+        "environmentVariables": {
+            "PATH": "/opt/intel/oneapi/compiler/latest/bin:/opt/intel/oneapi/compiler/latest/lib:${env:PATH}",
+            "LD_LIBRARY_PATH": "/opt/intel/oneapi/compiler/latest/lib:${env:LD_LIBRARY_PATH}"
+        },
+        "preferredGenerator": {
+            "name": "Unix Makefiles"
+        },
+        "isTrusted": true
+    }
+]

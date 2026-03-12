@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/gtest/include",
+                "/opt/intel/oneapi/compiler/latest/linux/include",
+                "/usr/local/openblas/include"
+            ],
+            "defines": [
+                "USE_BLAS",
+                "USE_LAPACK",
+                "_DEBUG"
+            ],
+            "compilerPath": "/opt/intel/oneapi/compiler/latest/linux/bin/icpx",
+            "cStandard": "c17",
+            "cppStandard": "c++14",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
