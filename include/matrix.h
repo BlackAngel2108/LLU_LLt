@@ -45,14 +45,14 @@ public:
     void print() const;
 
     // Функции LU-разложения
-    std::tuple<Matrix, Matrix, Matrix> lu_simple() const;
-    std::tuple<Matrix, Matrix, Matrix> lu_blocked(int mb, int nb) const;
-    std::tuple<Matrix, Matrix, Matrix> lu_blocked_parallel(int block_size) const;
+    void lu_simple(Matrix &P, Matrix &L, Matrix &U) const;
+    void lu_blocked(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const;
+    void lu_blocked_parallel(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const;
 
     // Функции разложения Холецкого
-    Matrix cholesky() const;
-    Matrix cholesky_blocked(int bs, int mb, int nb) const;
-    Matrix cholesky_blocked_parallel(int bs, int mb, int nb) const;
+    void cholesky(Matrix &L) const;
+    void cholesky_blocked(Matrix &L, int bs = 48) const;
+    void cholesky_blocked_parallel(Matrix &L, int bs = 48) const;
 
     // Доступ к данным (для OpenBLAS и оптимизаций)
     double *data() { return data_; }

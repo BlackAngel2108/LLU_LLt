@@ -29,7 +29,8 @@ TEST(MatrixDecomposition, LUSimple)
     A(2, 1) = -2;
     A(2, 2) = 8;
 
-    auto [P, L, U] = A.lu_simple();
+    Matrix P(3, 3), L(3, 3), U(3, 3);
+    A.lu_simple(P, L, U);
     Matrix left = P * A;
     Matrix right = L * U;
 
@@ -49,7 +50,8 @@ TEST(MatrixDecomposition, LUBlocked)
     A(2, 1) = -2;
     A(2, 2) = 8;
 
-    auto [P, L, U] = A.lu_blocked(128, 64);
+    Matrix P(3, 3), L(3, 3), U(3, 3);
+    A.lu_blocked(P, L, U, 128, 64);
     Matrix left = P * A;
     Matrix right = L * U;
 
@@ -69,7 +71,8 @@ TEST(MatrixDecomposition, LUBlockedParallel)
     A(2, 1) = -2;
     A(2, 2) = 8;
 
-    auto [P, L, U] = A.lu_blocked_parallel(2);
+    Matrix P(3, 3), L(3, 3), U(3, 3);
+    A.lu_blocked_parallel(P, L, U, 128, 64);
     Matrix left = P * A;
     Matrix right = L * U;
 
@@ -89,7 +92,8 @@ TEST(MatrixDecomposition, CholeskySimple)
     A(2, 1) = -43;
     A(2, 2) = 98;
 
-    Matrix L = A.cholesky();
+    Matrix L(3, 3);                    // Создаём матрицу для результата
+    A.cholesky_blocked_parallel(L, 2); // Передаём L и размер блока (2 по умолчанию)
     Matrix L_t = L.transpose();
     Matrix A_prime = L * L_t;
 
@@ -109,7 +113,8 @@ TEST(MatrixDecomposition, CholeskyBlocked)
     A(2, 1) = -43;
     A(2, 2) = 98;
 
-    Matrix L = A.cholesky_blocked(2,2,2);
+    Matrix L(3, 3);                    // Создаём матрицу для результата
+    A.cholesky_blocked_parallel(L, 2); // Передаём L и размер блока (2 по умолчанию)
     Matrix L_t = L.transpose();
     Matrix A_prime = L * L_t;
 
@@ -129,7 +134,9 @@ TEST(MatrixDecomposition, CholeskyBlockedParallel)
     A(2, 1) = -43;
     A(2, 2) = 98;
 
-    Matrix L = A.cholesky_blocked_parallel(2,2,2);
+    Matrix L(3, 3);                    // Создаём матрицу для результата
+    A.cholesky_blocked_parallel(L, 2); // Передаём L и размер блока (2 по умолчанию)
+
     Matrix L_t = L.transpose();
     Matrix A_prime = L * L_t;
 

@@ -9,7 +9,8 @@
 #include <algorithm> // для std::fill, std::copy
 #include <immintrin.h>
 #include <tuple>
-
+#include <omp.h>
+#include <chrono>
 // Вспомогательные функции для выровненной памяти
 static double *aligned_alloc(size_t size)
 {
@@ -186,13 +187,20 @@ void Matrix::print() const
 #define ASSUME_ALIGNED(ptr) (ptr)
 #endif
 
-std::tuple<Matrix, Matrix, Matrix>
-Matrix::lu_simple() const
+void Matrix::lu_simple(Matrix &P, Matrix &L, Matrix &U) const
 {
     if (rows_ != cols_)
         throw std::runtime_error("LU-разложение возможно только для квадратных матриц.");
 
     const int n = rows_;
+
+    // Проверяем размеры выходных матриц
+    if (P.getRows() != n || P.getCols() != n ||
+        L.getRows() != n || L.getCols() != n ||
+        U.getRows() != n || U.getCols() != n)
+    {
+        throw std::runtime_error("Output matrices P, L, U must have the same dimensions as the input matrix.");
+    }
 
     Matrix A = *this; // in-place факторизация
     double *a = A.data();
@@ -258,9 +266,6 @@ Matrix::lu_simple() const
     }
 
     // ===== Извлечение L и U =====
-    Matrix L(n, n);
-    Matrix U(n, n);
-
     for (int i = 0; i < n; ++i)
     {
         for (int j = 0; j < n; ++j)
@@ -284,7 +289,6 @@ Matrix::lu_simple() const
     }
 
     // ===== Построение матрицы перестановок P =====
-    Matrix P(n, n);
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < n; ++j)
             P(i, j) = 0.0;
@@ -299,18 +303,24 @@ Matrix::lu_simple() const
 
     for (int i = 0; i < n; ++i)
         P(i, perm[i]) = 1.0;
-
-    return {P, L, U};
 }
 
 // 2. Блочный алгоритм LU-разложения
-std::tuple<Matrix, Matrix, Matrix>
-Matrix::lu_blocked(int mb, int nb) const
+void Matrix::lu_blocked(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const
 {
     if (rows_ != cols_)
         throw std::runtime_error("LU возможно только для квадратных матриц.");
 
     const int n = rows_;
+
+    // Проверяем размеры выходных матриц
+    if (P.getRows() != n || P.getCols() != n ||
+        L.getRows() != n || L.getCols() != n ||
+        U.getRows() != n || U.getCols() != n)
+    {
+        throw std::runtime_error("Output matrices P, L, U must have the same dimensions as the input matrix.");
+    }
+
     if (nb <= 1)
         nb = 64;
     if (mb <= 1)
@@ -413,9 +423,6 @@ Matrix::lu_blocked(int mb, int nb) const
     }
 
     // ===== Извлечение L и U =====
-    Matrix L(n, n);
-    Matrix U(n, n);
-
     for (int i = 0; i < n; ++i)
     {
         for (int j = 0; j < n; ++j)
@@ -439,7 +446,6 @@ Matrix::lu_blocked(int mb, int nb) const
     }
 
     // ===== Построение P =====
-    Matrix P(n, n);
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < n; ++j)
             P(i, j) = 0.0;
@@ -454,20 +460,173 @@ Matrix::lu_blocked(int mb, int nb) const
 
     for (int i = 0; i < n; ++i)
         P(i, perm[i]) = 1.0;
-
-    return {P, L, U};
 }
 
 // 3. Блочный параллельный алгоритм LU-разложения с OpenMP
-std::tuple<Matrix, Matrix, Matrix> Matrix::lu_blocked_parallel(int block_size) const
+void Matrix::lu_blocked_parallel(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const
 {
-    // Заглушка: просто вызываем последовательную версию
-    // TODO: Implement parallel version
-    return lu_simple();
+    if (rows_ != cols_)
+        throw std::runtime_error("LU возможно только для квадратных матриц.");
+
+    const int n = rows_;
+
+    if (P.getRows() != n || P.getCols() != n ||
+        L.getRows() != n || L.getCols() != n ||
+        U.getRows() != n || U.getCols() != n)
+    {
+        throw std::runtime_error("Output matrices P, L, U must have the same dimensions.");
+    }
+
+    if (nb <= 1)
+        nb = 64;
+    if (mb <= 1)
+        mb = 128;
+
+    Matrix A(*this);
+    double *a = A.data();
+    const int ld = cols_;
+
+    std::vector<int> ipiv(n);
+    for (int i = 0; i < n; ++i)
+        ipiv[i] = i;
+
+    auto Aat = [&](int i, int j) -> double &
+    {
+        return a[(size_t)i * ld + j];
+    };
+
+    for (int j = 0; j < n; j += nb)
+    {
+        int jb = std::min(nb, n - j);
+
+        // ===== 1. Факторизация панели (с векторизацией) =====
+        for (int col = j; col < j + jb; ++col)
+        {
+            // поиск pivot (без векторизации)
+            int p = col;
+            double maxv = std::abs(Aat(col, col));
+            for (int i = col + 1; i < n; ++i)
+            {
+                double v = std::abs(Aat(i, col));
+                if (v > maxv)
+                {
+                    maxv = v;
+                    p = i;
+                }
+            }
+
+            if (maxv < 1e-15)
+                throw std::runtime_error("Матрица вырождена.");
+            ipiv[col] = p;
+
+            if (p != col)
+            {
+                for (int k = 0; k < n; ++k)
+                    std::swap(Aat(col, k), Aat(p, k));
+            }
+
+            double inv = 1.0 / Aat(col, col);
+            for (int i = col + 1; i < n; ++i)
+                Aat(i, col) *= inv;
+
+            // ВЕКТОРИЗОВАННОЕ обновление панели
+            double *row_col = a + (size_t)col * ld;
+            for (int i = col + 1; i < n; ++i)
+            {
+                double lij = Aat(i, col);
+                double *row_i = a + (size_t)i * ld;
+#pragma omp simd
+                for (int k = col + 1; k < j + jb; ++k)
+                    row_i[k] -= lij * row_col[k];
+            }
+        }
+
+        if (j + jb >= n)
+            continue;
+
+// ===== 2. TRSM с векторизацией =====
+#pragma omp parallel for schedule(static)
+        for (int i = j; i < j + jb; ++i)
+        {
+            double *row_i = a + (size_t)i * ld;
+            for (int k = j; k < i; ++k)
+            {
+                double lik = row_i[k];
+                double *row_k = a + (size_t)k * ld;
+#pragma omp simd
+                for (int col = j + jb; col < n; ++col)
+                    row_i[col] -= lik * row_k[col];
+            }
+        }
+
+// ===== 3. GEMM с векторизацией =====
+#pragma omp parallel for collapse(2) schedule(static)
+        for (int ii = j + jb; ii < n; ii += mb)
+        {
+            for (int jj = j + jb; jj < n; jj += nb)
+            {
+                int i_end = std::min(ii + mb, n);
+                int j_end = std::min(jj + nb, n);
+
+                for (int i = ii; i < i_end; ++i)
+                {
+                    double *row_i = a + (size_t)i * ld;
+                    for (int k = j; k < j + jb; ++k)
+                    {
+                        double lik = row_i[k];
+                        double *row_k = a + (size_t)k * ld;
+#pragma omp simd
+                        for (int col = jj; col < j_end; ++col)
+                            row_i[col] -= lik * row_k[col];
+                    }
+                }
+            }
+        }
+    }
+
+// ===== Извлечение L и U с векторизацией =====
+#pragma omp parallel for
+    for (int i = 0; i < n; ++i)
+    {
+        for (int j = 0; j < n; ++j)
+        {
+            if (i > j)
+            {
+                L(i, j) = A(i, j);
+                U(i, j) = 0.0;
+            }
+            else if (i == j)
+            {
+                L(i, j) = 1.0;
+                U(i, j) = A(i, j);
+            }
+            else
+            {
+                L(i, j) = 0.0;
+                U(i, j) = A(i, j);
+            }
+        }
+    }
+
+// ===== Построение P =====
+#pragma omp parallel for
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
+            P(i, j) = 0.0;
+
+    std::vector<int> perm(n);
+    for (int i = 0; i < n; ++i)
+        perm[i] = i;
+    for (int i = 0; i < n; ++i)
+        std::swap(perm[i], perm[ipiv[i]]);
+
+#pragma omp parallel for
+    for (int i = 0; i < n; ++i)
+        P(i, perm[i]) = 1.0;
 }
 
 // 4. Разложение Холецкого (LLt)
-Matrix Matrix::cholesky() const
+void Matrix::cholesky(Matrix &L) const
 {
     if (rows_ != cols_)
     {
@@ -475,7 +634,12 @@ Matrix Matrix::cholesky() const
     }
 
     int n = rows_;
-    Matrix L(n, n);
+
+    // Проверяем, что матрица L имеет правильный размер
+    if (L.getRows() != n || L.getCols() != n)
+    {
+        throw std::runtime_error("Output matrix L must have the same dimensions.");
+    }
 
     const double *A_data = data_; // исходная матрица
     double *L_data = L.data();    // матрица результата
@@ -515,7 +679,6 @@ Matrix Matrix::cholesky() const
             }
         }
     }
-    return L;
 }
 
 // Умножение матриц
@@ -526,40 +689,70 @@ Matrix Matrix::operator*(const Matrix &other) const
         throw std::invalid_argument("Несоответствие размеров матриц для умножения.");
     }
 
-    int m = rows_;
-    int n = other.cols_;
-    int k = cols_;
+    const int m = rows_;
+    const int n = other.cols_;
+    const int k = cols_;
+    const int BLOCK = 128; // Можно подобрать под кэш L2: ~256KB / 8 = ~128
 
     Matrix result(m, n);
+    // Не обнуляем result здесь - обнулим блоками при накоплении
 
     const double *A = data_;
     const double *B = other.data_;
     double *C = result.data();
 
-    const int BLOCK = 128;
+    // Оптимизация 1: обнуляем результат через memset (быстро)
+    memset(C, 0, result.size() * sizeof(double));
 
-#pragma omp parallel for collapse(2)
+// Оптимизация 2: правильный порядок блоков i0, j0, k0
+#pragma omp parallel for collapse(2) schedule(static)
     for (int i0 = 0; i0 < m; i0 += BLOCK)
     {
-        for (int k0 = 0; k0 < k; k0 += BLOCK)
+        for (int j0 = 0; j0 < n; j0 += BLOCK)
         {
-            for (int j0 = 0; j0 < n; j0 += BLOCK)
-            {
-                int i_end = std::min(i0 + BLOCK, m);
-                int k_end = std::min(k0 + BLOCK, k);
-                int j_end = std::min(j0 + BLOCK, n);
+            const int i_end = std::min(i0 + BLOCK, m);
+            const int j_end = std::min(j0 + BLOCK, n);
 
-                // Умножение блоков A[i0:i_end, k0:k_end] * B[k0:k_end, j0:j_end]
+            // Оптимизация 3: накопление через блоки k
+            for (int k0 = 0; k0 < k; k0 += BLOCK)
+            {
+                const int k_end = std::min(k0 + BLOCK, k);
+
+                // Оптимизация 4: ручная размотка для улучшения ILP
                 for (int i = i0; i < i_end; ++i)
                 {
                     double *C_i = C + i * n;
                     const double *A_i = A + i * k;
 
-                    for (int kk = k0; kk < k_end; ++kk)
+                    // Оптимизация 5: размотка цикла по kk (по 4 элемента)
+                    int kk = k0;
+                    for (; kk + 3 < k_end; kk += 4)
+                    {
+                        double aik0 = A_i[kk];
+                        double aik1 = A_i[kk + 1];
+                        double aik2 = A_i[kk + 2];
+                        double aik3 = A_i[kk + 3];
+
+                        const double *B_k0 = B + kk * n;
+                        const double *B_k1 = B + (kk + 1) * n;
+                        const double *B_k2 = B + (kk + 2) * n;
+                        const double *B_k3 = B + (kk + 3) * n;
+
+#pragma omp simd
+                        for (int j = j0; j < j_end; ++j)
+                        {
+                            C_i[j] += aik0 * B_k0[j] + aik1 * B_k1[j] +
+                                      aik2 * B_k2[j] + aik3 * B_k3[j];
+                        }
+                    }
+
+                    // Остаток
+                    for (; kk < k_end; ++kk)
                     {
                         double aik = A_i[kk];
                         const double *B_k = B + kk * n;
 
+#pragma omp simd
                         for (int j = j0; j < j_end; ++j)
                         {
                             C_i[j] += aik * B_k[j];
@@ -588,234 +781,295 @@ Matrix Matrix::transpose() const
 }
 
 // Блочный алгоритм разложения Холецкого
-Matrix Matrix::cholesky_blocked(int bs, int mb, int nb) const
+void Matrix::cholesky_blocked(Matrix &L, int bs) const
 {
     if (rows_ != cols_)
         throw std::runtime_error("Cholesky only for square matrices.");
 
     const int n = rows_;
+
     if (bs <= 0)
-        bs = 64;
-    if (mb <= 0)
-        mb = 128;
-    if (nb <= 0)
-        nb = 64;
+        bs = 48;
 
-    Matrix R = *this;
-    double *__restrict A = R.data();
-    const int ld = n;
-
-    auto row = [&](int i) -> double *
+    if (L.getRows() != n || L.getCols() != n)
     {
-        return A + (size_t)i * ld;
-    };
+        throw std::runtime_error("Output matrix L must have the same dimensions.");
+    }
 
-    for (int k = 0; k < n; k += bs)
+    // Копируем текущую матрицу в L
+    L = *this;
+    const int ld = L.getCols();
+
+    // Обнуляем верхний треугольник
+    for (int i = 0; i < n; ++i)
     {
-        const int kend = std::min(k + bs, n);
-
-        // 1) Factorize diagonal block (unblocked inside block)
-        for (int j = k; j < kend; ++j)
+        for (int j = i + 1; j < n; ++j)
         {
-            double *Aj = row(j);
+            L.at_unchecked(i, j) = 0.0;
+        }
+    }
 
-            double d = Aj[j];
-            for (int p = k; p < j; ++p)
+    const int blocks = (n + bs - 1) / bs;
+
+    for (int bk = 0; bk < blocks; ++bk)
+    {
+        int k = bk * bs;
+        int bs_current = std::min(bs, n - k);
+        int kend = k + bs_current;
+
+        // Фаза 1: Факторизация диагонального блока
+        for (int i = k; i < kend; ++i)
+        {
+            for (int j = k; j < i; ++j)
             {
-                double v = Aj[p];
-                d -= v * v;
-            }
-            // if (d <= 0.0) throw std::runtime_error("Matrix is not SPD.");
-
-            d = std::sqrt(d);
-            Aj[j] = d;
-            const double inv = 1.0 / d;
-
-            for (int i = j + 1; i < kend; ++i)
-            {
-                double *Ai = row(i);
-                double s = Ai[j];
+                double s = L.at_unchecked(i, j);
                 for (int p = k; p < j; ++p)
                 {
-                    s -= Ai[p] * Aj[p];
+                    s -= L.at_unchecked(i, p) * L.at_unchecked(j, p);
                 }
-                Ai[j] = s * inv;
+                L.at_unchecked(i, j) = s / L.at_unchecked(j, j);
             }
+
+            double diag = L.at_unchecked(i, i);
+            for (int p = k; p < i; ++p)
+            {
+                double v = L.at_unchecked(i, p);
+                diag -= v * v;
+            }
+
+            if (diag < 0.0 && diag > -1e-12)
+            {
+                diag = 0.0;
+            }
+
+            if (diag <= 0.0)
+            {
+                throw std::runtime_error("Matrix is not SPD (diagonal <= 0)");
+            }
+
+            L.at_unchecked(i, i) = std::sqrt(diag);
         }
 
         if (kend >= n)
             break;
 
-        // 2) Compute L21 (TRSM-like): rows kend..n-1, cols k..kend-1
-        for (int j = k; j < kend; ++j)
+        // Фаза 2: Вычисление блока L21
+        for (int bi = bk + 1; bi < blocks; ++bi)
         {
-            double *Aj = row(j);
-            const double ljj = Aj[j];
+            int i0 = bi * bs;
+            int ib = std::min(bs, n - i0);
+            int iend = i0 + ib;
 
-            for (int i = kend; i < n; ++i)
+            for (int i = i0; i < iend; ++i)
             {
-                double *Ai = row(i);
-                double s = Ai[j];
-                for (int p = k; p < j; ++p)
-                    s -= Ai[p] * Aj[p];
-                Ai[j] = s / ljj;
+                for (int j = k; j < kend; ++j)
+                {
+                    double s = L.at_unchecked(i, j);
+                    for (int p = k; p < j; ++p)
+                    {
+                        s -= L.at_unchecked(i, p) * L.at_unchecked(j, p);
+                    }
+                    L.at_unchecked(i, j) = s / L.at_unchecked(j, j);
+                }
             }
         }
 
-        // 3) Update trailing A22 -= L21 * L21^T   (tiled mb×nb)
-        for (int ii = kend; ii < n; ii += mb)
+        // Фаза 3a: Обновление диагональных блоков
+        for (int bi = bk + 1; bi < blocks; ++bi)
         {
-            const int i_end = std::min(ii + mb, n);
+            int i0 = bi * bs;
+            int ib = std::min(bs, n - i0);
+            int iend = i0 + ib;
 
-            for (int jj = kend; jj <= ii; jj += nb) // only lower triangle tiles
+            for (int i = i0; i < iend; ++i)
             {
-                const int j_end = std::min(jj + nb, n);
-
-                for (int i = ii; i < i_end; ++i)
+                for (int j = i0; j <= i; ++j)
                 {
-                    double *Ai = row(i);
-                    const int j_lim = std::min(j_end, i + 1);
-
+                    double s = L.at_unchecked(i, j);
                     for (int p = k; p < kend; ++p)
                     {
-                        const double lip = Ai[p];
+                        s -= L.at_unchecked(i, p) * L.at_unchecked(j, p);
+                    }
+                    L.at_unchecked(i, j) = s;
+                }
+            }
+        }
 
-// inner loop over j contiguous in memory (row-major)
-#pragma omp simd
-                        for (int j = jj; j < j_lim; ++j)
+        // Фаза 3b: Обновление off-diagonal блоков
+        for (int bi = bk + 1; bi < blocks; ++bi)
+        {
+            for (int bj = bk + 1; bj < bi; ++bj)
+            {
+                int i0 = bi * bs;
+                int ib = std::min(bs, n - i0);
+                int iend = i0 + ib;
+
+                int j0 = bj * bs;
+                int jb = std::min(bs, n - j0);
+                int jend = j0 + jb;
+
+                for (int i = i0; i < iend; ++i)
+                {
+                    for (int j = j0; j < jend; ++j)
+                    {
+                        double s = L.at_unchecked(i, j);
+                        for (int p = k; p < kend; ++p)
                         {
-                            Ai[j] -= lip * row(j)[p]; // A(j,p) is L21(j,p)
+                            s -= L.at_unchecked(i, p) * L.at_unchecked(j, p);
                         }
+                        L.at_unchecked(i, j) = s;
                     }
                 }
             }
         }
     }
-
-    // zero upper triangle
-    for (int i = 0; i < n; ++i)
-    {
-        double *Ai = row(i);
-        memset(Ai + i + 1, 0, (n - i - 1) * sizeof(double));
-    }
-
-    return R;
 }
 
 // Блочный параллельный алгоритм разложения Холецкого
-Matrix Matrix::cholesky_blocked_parallel(int bs, int mb, int nb) const
+void Matrix::cholesky_blocked_parallel(Matrix &L, int bs) const
 {
-    // Заглушка: просто вызываем последовательную блочную версию
-    // TODO: Implement parallel version
-    // return cholesky_blocked(block_size, block_size, block_size);
     if (rows_ != cols_)
         throw std::runtime_error("Cholesky only for square matrices.");
 
     const int n = rows_;
+
     if (bs <= 0)
-        bs = 64;
-    if (mb <= 0)
-        mb = 128;
-    if (nb <= 0)
-        nb = 64;
+        bs = 48; // Оптимальный размер блока из эталонного кода
 
-    Matrix R = *this;
-    double *__restrict A = R.data();
-    const int ld = n;
-
-    auto row = [&](int i) -> double *
+    if (L.getRows() != n || L.getCols() != n)
     {
-        return A + (size_t)i * ld;
+        throw std::runtime_error("Output matrix L must have the same dimensions.");
+    }
+
+    double *A = L.data();
+    const int ld = L.getCols();
+
+    // Вспомогательная функция индексации (row-major)
+    auto idx = [ld](int i, int j) -> size_t
+    {
+        return (size_t)i * ld + j;
     };
 
-    for (int k = 0; k < n; k += bs)
+// ===== Инициализация L: копируем нижний треугольник, обнуляем верхний =====
+#pragma omp parallel for schedule(static)
+    for (int i = 0; i < n; ++i)
     {
-        const int kend = std::min(k + bs, n);
-
-        // 1) Factorize diagonal block (unblocked inside block)
-        for (int j = k; j < kend; ++j)
+        for (int j = 0; j <= i; ++j)
         {
-            double *Aj = row(j);
+            A[idx(i, j)] = (*this)(i, j);
+        }
+        for (int j = i + 1; j < n; ++j)
+        {
+            A[idx(i, j)] = 0.0;
+        }
+    }
 
-            double d = Aj[j];
-            for (int p = k; p < j; ++p)
+    const int blocks = (n + bs - 1) / bs;
+
+    // ===== Основной блочный цикл =====
+    for (int bk = 0; bk < blocks; ++bk)
+    {
+        int k = bk * bs;
+        int bs_current = std::min(bs, n - k);
+        int kend = k + bs_current;
+
+        // ===== Фаза 1: Факторизация диагонального блока (последовательно) =====
+        for (int i = k; i < kend; ++i)
+        {
+            for (int j = k; j < i; ++j)
             {
-                double v = Aj[p];
-                d -= v * v;
-            }
-            // if (d <= 0.0) throw std::runtime_error("Matrix is not SPD.");
-
-            d = std::sqrt(d);
-            Aj[j] = d;
-            const double inv = 1.0 / d;
-
-            for (int i = j + 1; i < kend; ++i)
-            {
-                double *Ai = row(i);
-                double s = Ai[j];
+                double s = A[idx(i, j)];
                 for (int p = k; p < j; ++p)
                 {
-                    s -= Ai[p] * Aj[p];
+                    s -= A[idx(i, p)] * A[idx(j, p)];
                 }
-                Ai[j] = s * inv;
+                A[idx(i, j)] = s / A[idx(j, j)];
             }
+
+            double diag = A[idx(i, i)];
+            for (int p = k; p < i; ++p)
+            {
+                double v = A[idx(i, p)];
+                diag -= v * v;
+            }
+
+            if (diag < 0.0 && diag > -1e-12)
+            {
+                diag = 0.0;
+            }
+
+            if (diag <= 0.0)
+            {
+                throw std::runtime_error("Matrix is not SPD");
+            }
+
+            A[idx(i, i)] = std::sqrt(diag);
         }
 
         if (kend >= n)
             break;
 
-        // 2) Compute L21 (TRSM-like): rows kend..n-1, cols k..kend-1
-        for (int j = k; j < kend; ++j)
+// ===== Фаза 2: Вычисление блока L21 (параллельно) =====
+#pragma omp parallel for schedule(static)
+        for (int bi = bk + 1; bi < blocks; ++bi)
         {
-            double *Aj = row(j);
-            const double ljj = Aj[j];
+            int i0 = bi * bs;
+            int iend = std::min(i0 + bs, n);
 
-            for (int i = kend; i < n; ++i)
+            for (int i = i0; i < iend; ++i)
             {
-                double *Ai = row(i);
-                double s = Ai[j];
-                for (int p = k; p < j; ++p)
-                    s -= Ai[p] * Aj[p];
-                Ai[j] = s / ljj;
+                for (int j = k; j < kend; ++j)
+                {
+                    double s = A[idx(i, j)];
+                    for (int p = k; p < j; ++p)
+                    {
+                        s -= A[idx(i, p)] * A[idx(j, p)];
+                    }
+                    A[idx(i, j)] = s / A[idx(j, j)];
+                }
             }
         }
 
-        // 3) Update trailing A22 -= L21 * L21^T   (tiled mb×nb)
-        for (int ii = kend; ii < n; ii += mb)
+// ===== Фаза 3: Обновление trailing matrix (параллельно) =====
+#pragma omp parallel for schedule(static)
+        for (int bi = bk + 1; bi < blocks; ++bi)
         {
-            const int i_end = std::min(ii + mb, n);
+            int i0 = bi * bs;
+            int iend = std::min(i0 + bs, n);
 
-            for (int jj = kend; jj <= ii; jj += nb) // only lower triangle tiles
+            // Диагональные блоки
+            for (int i = i0; i < iend; ++i)
             {
-                const int j_end = std::min(jj + nb, n);
-
-                for (int i = ii; i < i_end; ++i)
+                for (int j = i0; j <= i; ++j)
                 {
-                    double *Ai = row(i);
-                    const int j_lim = std::min(j_end, i + 1);
-
+                    double s = A[idx(i, j)];
                     for (int p = k; p < kend; ++p)
                     {
-                        const double lip = Ai[p];
+                        s -= A[idx(i, p)] * A[idx(j, p)];
+                    }
+                    A[idx(i, j)] = s;
+                }
+            }
 
-// inner loop over j contiguous in memory (row-major)
-#pragma omp simd
-                        for (int j = jj; j < j_lim; ++j)
+            // Off-diagonal блоки
+            for (int bj = bk + 1; bj < bi; ++bj)
+            {
+                int j0 = bj * bs;
+                int jend = std::min(j0 + bs, n);
+
+                for (int i = i0; i < iend; ++i)
+                {
+                    for (int j = j0; j < jend; ++j)
+                    {
+                        double s = A[idx(i, j)];
+                        for (int p = k; p < kend; ++p)
                         {
-                            Ai[j] -= lip * row(j)[p]; // A(j,p) is L21(j,p)
+                            s -= A[idx(i, p)] * A[idx(j, p)];
                         }
+                        A[idx(i, j)] = s;
                     }
                 }
             }
         }
     }
-
-    // zero upper triangle
-    for (int i = 0; i < n; ++i)
-    {
-        double *Ai = row(i);
-        memset(Ai + i + 1, 0, (n - i - 1) * sizeof(double));
-    }
-
-    return R;
 }

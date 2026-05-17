@@ -69,32 +69,49 @@ double run_my_benchmark(const std::string &type, int size, int block_size, int t
         }
 
         omp_set_num_threads(threads);
-
         auto start = std::chrono::high_resolution_clock::now();
 
         if (type == "lu_simple")
         {
-            A.lu_simple();
+            Matrix P(size, size);
+            Matrix L(size, size);
+            Matrix U(size, size);
+            start = std::chrono::high_resolution_clock::now();
+            A.lu_simple(P, L, U);
         }
         else if (type == "lu_blocked")
         {
-            A.lu_blocked(block_size, block_size);
+            Matrix P(size, size);
+            Matrix L(size, size);
+            Matrix U(size, size);
+            start = std::chrono::high_resolution_clock::now();
+            A.lu_blocked(P, L, U, block_size, block_size);
         }
         else if (type == "lu_blocked_parallel")
         {
-            A.lu_blocked_parallel(block_size);
+            Matrix P(size, size);
+            Matrix L(size, size);
+            Matrix U(size, size);
+            start = std::chrono::high_resolution_clock::now();
+            A.lu_blocked_parallel(P, L, U, block_size, block_size);
         }
         else if (type == "cholesky_simple")
         {
-            A.cholesky();
+            Matrix L(size, size);
+            start = std::chrono::high_resolution_clock::now();
+            A.cholesky(L);
         }
         else if (type == "cholesky_blocked")
         {
-            A.cholesky_blocked(50, 50, 100); // захардкожено!!!!!!!!!!!
+            Matrix L(size, size);
+            start = std::chrono::high_resolution_clock::now();
+            A.cholesky_blocked(L, block_size);
         }
         else if (type == "cholesky_blocked_parallel")
         {
-            A.cholesky_blocked_parallel(block_size, block_size, block_size);
+            Matrix L(size, size);
+            start = std::chrono::high_resolution_clock::now();
+            A.cholesky_blocked_parallel(L, block_size);
         }
 
         auto end = std::chrono::high_resolution_clock::now();
@@ -146,9 +163,9 @@ double run_openblas_benchmark(const std::string &type, int size, int threads, in
 // Функция для запуска бенчмарков моего кода
 void run_my_benchmarks(const std::string &results_file)
 {
-    std::vector<int> matrix_sizes = {256,1000,2000};
-    std::vector<int> block_sizes = {16};
-    std::vector<int> thread_counts = {1};
+    std::vector<int> matrix_sizes = {4000};
+    std::vector<int> block_sizes = {64};
+    std::vector<int> thread_counts = {4, 5, 6, 7, 8};
     const int runs_per_setting = 3;
 
     std::vector<Algorithm> algorithms = {
@@ -156,9 +173,8 @@ void run_my_benchmarks(const std::string &results_file)
         //{"lu_blocked", false, true, false},
         //{"lu_blocked_parallel", true, true, false},
         //{"cholesky_simple", false, false, false},
-        {"cholesky_blocked", false, true, false},
-        //{"cholesky_blocked_parallel", true, true, false}
-    };
+        //{"cholesky_blocked", false, true, false},
+        {"cholesky_blocked_parallel", true, true, false}};
 
     std::ofstream f_results(results_file);
     f_results << "Algorithm,MatrixSize,Threads,Block,MyTime_ms\n";
@@ -265,18 +281,18 @@ void compare_algorithms(const std::string &comparison_file)
         std::cout << "Current working directory: " << cwd << std::endl;
         std::cout << "Looking for file: " << cwd << "/" << comparison_file << std::endl;
     }
-    std::vector<int> matrix_sizes = {256, 512, 1024, 2048};
+    std::vector<int> matrix_sizes = {1000, 2000, 3000, 4000};
     std::vector<int> block_sizes = {32};
-    std::vector<int> thread_counts = {1};
+    std::vector<int> thread_counts = {1, 2, 4, 8};
     const int runs_per_setting = 3;
 
     std::vector<Algorithm> algorithms = {
         // парал блоки блас
-        //{"lu_simple", false, false, false},
-        //{"lu_blocked", false, true, false},
-        //{"lu_blocked_parallel", true, true, false},
-        //{"cholesky_simple", false, false, false},
-        //{"cholesky_blocked", false, true, false},
+        {"lu_simple", false, false, false},
+        {"lu_blocked", false, true, false},
+        {"lu_blocked_parallel", true, true, false},
+        {"cholesky_simple", false, false, false},
+        {"cholesky_blocked", false, true, false},
         {"cholesky_blocked_parallel", true, true, false}};
 
     std::ofstream comp_out(comparison_file);
@@ -313,6 +329,7 @@ void compare_algorithms(const std::string &comparison_file)
                           << std::fixed << std::setprecision(4) << openblas_time << ","
                           << std::fixed << std::setprecision(4) << difference << ","
                           << std::fixed << std::setprecision(4) << speedup << "\n";
+                comp_out << std::flush;
                 comp_out << algo.name << "," << size << ",1,0,"
                          << std::fixed << std::setprecision(4) << my_time << ","
                          << std::fixed << std::setprecision(4) << openblas_time << ","
@@ -338,6 +355,7 @@ void compare_algorithms(const std::string &comparison_file)
                              << std::fixed << std::setprecision(4) << difference << ","
                              << std::fixed << std::setprecision(4) << speedup << "\n"
                              << std::flush;
+                    comp_out << std::flush;
 
                     std::cout << algo.name << "," << size << ",1," << bs << ","
                               << std::fixed << std::setprecision(4) << my_time << ","
@@ -367,7 +385,7 @@ void compare_algorithms(const std::string &comparison_file)
                                  << std::fixed << std::setprecision(4) << openblas_time << ","
                                  << std::fixed << std::setprecision(4) << difference << ","
                                  << std::fixed << std::setprecision(4) << speedup << "\n";
-
+                        comp_out << std::flush;
                         std::cout << algo.name << "," << size << "," << threads << "," << bs << ","
                                   << std::fixed << std::setprecision(4) << my_time << ","
                                   << std::fixed << std::setprecision(4) << openblas_time << ","
