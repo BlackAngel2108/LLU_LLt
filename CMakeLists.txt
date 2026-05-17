@@ -3,6 +3,27 @@ cmake_minimum_required(VERSION 3.23.5)
 # Возможные компиляторы для выбора
 set(CMAKE_C_COMPILER "gcc" CACHE STRING "C compiler")
 set(CMAKE_CXX_COMPILER "g++" CACHE STRING "C++ compiler")
+# В начале CMakeLists.txt
+# Проверка на кросс-компиляцию
+if(CMAKE_CROSSCOMPILING)
+    set(USE_BLAS OFF CACHE BOOL "Disable BLAS for cross-compilation")
+    set(USE_LAPACK OFF CACHE BOOL "Disable LAPACK for cross-compilation")
+    message(STATUS "Cross-compiling: BLAS/LAPACK disabled")
+else()
+    # Ищем BLAS/LAPACK только для native сборки
+    find_package(BLAS REQUIRED)
+    find_package(LAPACK REQUIRED)
+    find_package(LAPACKE REQUIRED)
+endif()
+
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GCC" AND CMAKE_SYSTEM_PROCESSOR MATCHES "riscv")
+    # Добавляем флаги для RISC-V
+    add_compile_options(-march=rv64gcv_zvfh -mabi=lp64d)
+    add_link_options(-march=rv64gcv_zvfh -mabi=lp64d)
+    message(STATUS "RISC-V specific flags added")
+endif()
+
 
 # Intel компилятор можно будет выбрать через интерфейс
 option(USE_INTEL "Use Intel compiler" OFF)
@@ -101,3 +122,4 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -xHost -qopt-zmm-usage=high -ffast-math")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -xHost -qopt-zmm-usage=high -ffast-math")
 endif()
+
