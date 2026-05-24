@@ -37,12 +37,12 @@ set_target_properties(${PROJECT_NAME}_benchmarks PROPERTIES
 )
 
 
-target_link_libraries(${PROJECT_NAME}_benchmarks PRIVATE
-    ${target}
-    ${LAPACK_LIBRARIES}
-    ${LAPACKE_LIBRARIES}
-    openblas
-)
+#target_link_libraries(${PROJECT_NAME}_benchmarks PRIVATE
+#    ${target}
+#    ${LAPACK_LIBRARIES}
+#    ${LAPACKE_LIBRARIES}
+#    openblas
+#)
 
 target_include_directories(${PROJECT_NAME}_benchmarks PRIVATE
     ${LU_INCLUDE}

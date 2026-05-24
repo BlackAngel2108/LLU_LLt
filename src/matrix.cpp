@@ -7,10 +7,15 @@
 #include <numeric>   // Для std::iota
 #include <cstring>   // Для std::memcpy
 #include <algorithm> // для std::fill, std::copy
-#include <immintrin.h>
+//#include <immintrin.h>
 #include <tuple>
 #include <omp.h>
 #include <chrono>
+
+
+#ifdef USE_RVV
+#include <riscv_vector.h>
+#endif
 // Вспомогательные функции для выровненной памяти
 static double *aligned_alloc(size_t size)
 {
@@ -1073,3 +1078,607 @@ void Matrix::cholesky_blocked_parallel(Matrix &L, int bs) const
         }
     }
 }
+
+
+#ifdef USE_RVV
+
+// ============================================================
+// RVV helper kernels: y[col] -= alpha * x[col]
+// ============================================================
+
+static inline void rvv_axpy_neg_m1(double *y, const double *x, double alpha, int begin, int end)
+{
+    int len = end - begin;
+    int off = begin;
+
+    while (len > 0) {
+        size_t vl = __riscv_vsetvl_e64m1(len);
+
+        vfloat64m1_t vy = __riscv_vle64_v_f64m1(y + off, vl);
+        vfloat64m1_t vx = __riscv_vle64_v_f64m1(x + off, vl);
+
+        vy = __riscv_vfmacc_vf_f64m1(vy, -alpha, vx, vl);
+
+        __riscv_vse64_v_f64m1(y + off, vy, vl);
+
+        off += vl;
+        len -= vl;
+    }
+}
+
+static inline void rvv_axpy_neg_m2(double *y, const double *x, double alpha, int begin, int end)
+{
+    int len = end - begin;
+    int off = begin;
+
+    while (len > 0) {
+        size_t vl = __riscv_vsetvl_e64m2(len);
+
+        vfloat64m2_t vy = __riscv_vle64_v_f64m2(y + off, vl);
+        vfloat64m2_t vx = __riscv_vle64_v_f64m2(x + off, vl);
+
+        vy = __riscv_vfmacc_vf_f64m2(vy, -alpha, vx, vl);
+
+        __riscv_vse64_v_f64m2(y + off, vy, vl);
+
+        off += vl;
+        len -= vl;
+    }
+}
+
+static inline void rvv_axpy_neg_m4(double *y, const double *x, double alpha, int begin, int end)
+{
+    int len = end - begin;
+    int off = begin;
+
+    while (len > 0) {
+        size_t vl = __riscv_vsetvl_e64m4(len);
+
+        vfloat64m4_t vy = __riscv_vle64_v_f64m4(y + off, vl);
+        vfloat64m4_t vx = __riscv_vle64_v_f64m4(x + off, vl);
+
+        vy = __riscv_vfmacc_vf_f64m4(vy, -alpha, vx, vl);
+
+        __riscv_vse64_v_f64m4(y + off, vy, vl);
+
+        off += vl;
+        len -= vl;
+    }
+}
+
+static inline void rvv_axpy_neg_m8(double *y, const double *x, double alpha, int begin, int end)
+{
+    int len = end - begin;
+    int off = begin;
+
+    while (len > 0) {
+        size_t vl = __riscv_vsetvl_e64m8(len);
+
+        vfloat64m8_t vy = __riscv_vle64_v_f64m8(y + off, vl);
+        vfloat64m8_t vx = __riscv_vle64_v_f64m8(x + off, vl);
+
+        vy = __riscv_vfmacc_vf_f64m8(vy, -alpha, vx, vl);
+
+        __riscv_vse64_v_f64m8(y + off, vy, vl);
+
+        off += vl;
+        len -= vl;
+    }
+}
+
+// ============================================================
+// RVV helper kernels: dot product
+// ============================================================
+
+static inline double rvv_dot_m1(const double *a, const double *b, int begin, int end)
+{
+    int len = end - begin;
+    int off = begin;
+
+    size_t vlmax = __riscv_vsetvlmax_e64m1();
+    vfloat64m1_t vsum = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+
+    while (len > 0) {
+        size_t vl = __riscv_vsetvl_e64m1(len);
+
+        vfloat64m1_t va = __riscv_vle64_v_f64m1(a + off, vl);
+        vfloat64m1_t vb = __riscv_vle64_v_f64m1(b + off, vl);
+
+        vsum = __riscv_vfmacc_vv_f64m1(vsum, va, vb, vl);
+
+        off += vl;
+        len -= vl;
+    }
+
+    vfloat64m1_t vzero = __riscv_vfmv_v_f_f64m1(0.0, 1);
+    vfloat64m1_t vred = __riscv_vfredusum_vs_f64m1_f64m1(vsum, vzero, vlmax);
+
+    double result = 0.0;
+    __riscv_vse64_v_f64m1(&result, vred, 1);
+
+    return result;
+}
+
+static inline double rvv_dot_m2(const double *a, const double *b, int begin, int end)
+{
+    int len = end - begin;
+    int off = begin;
+
+    size_t vlmax = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t vsum = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+
+    while (len > 0) {
+        size_t vl = __riscv_vsetvl_e64m2(len);
+
+        vfloat64m2_t va = __riscv_vle64_v_f64m2(a + off, vl);
+        vfloat64m2_t vb = __riscv_vle64_v_f64m2(b + off, vl);
+
+        vsum = __riscv_vfmacc_vv_f64m2(vsum, va, vb, vl);
+
+        off += vl;
+        len -= vl;
+    }
+
+    vfloat64m1_t vzero = __riscv_vfmv_v_f_f64m1(0.0, 1);
+    vfloat64m1_t vred = __riscv_vfredusum_vs_f64m2_f64m1(vsum, vzero, vlmax);
+
+    double result = 0.0;
+    __riscv_vse64_v_f64m1(&result, vred, 1);
+
+    return result;
+}
+
+static inline double rvv_dot_m4(const double *a, const double *b, int begin, int end)
+{
+    int len = end - begin;
+    int off = begin;
+
+    size_t vlmax = __riscv_vsetvlmax_e64m4();
+    vfloat64m4_t vsum = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+
+    while (len > 0) {
+        size_t vl = __riscv_vsetvl_e64m4(len);
+
+        vfloat64m4_t va = __riscv_vle64_v_f64m4(a + off, vl);
+        vfloat64m4_t vb = __riscv_vle64_v_f64m4(b + off, vl);
+
+        vsum = __riscv_vfmacc_vv_f64m4(vsum, va, vb, vl);
+
+        off += vl;
+        len -= vl;
+    }
+
+    vfloat64m1_t vzero = __riscv_vfmv_v_f_f64m1(0.0, 1);
+    vfloat64m1_t vred = __riscv_vfredusum_vs_f64m4_f64m1(vsum, vzero, vlmax);
+
+    double result = 0.0;
+    __riscv_vse64_v_f64m1(&result, vred, 1);
+
+    return result;
+}
+
+static inline double rvv_dot_m8(const double *a, const double *b, int begin, int end)
+{
+    int len = end - begin;
+    int off = begin;
+
+    size_t vlmax = __riscv_vsetvlmax_e64m8();
+    vfloat64m8_t vsum = __riscv_vfmv_v_f_f64m8(0.0, vlmax);
+
+    while (len > 0) {
+        size_t vl = __riscv_vsetvl_e64m8(len);
+
+        vfloat64m8_t va = __riscv_vle64_v_f64m8(a + off, vl);
+        vfloat64m8_t vb = __riscv_vle64_v_f64m8(b + off, vl);
+
+        vsum = __riscv_vfmacc_vv_f64m8(vsum, va, vb, vl);
+
+        off += vl;
+        len -= vl;
+    }
+
+    vfloat64m1_t vzero = __riscv_vfmv_v_f_f64m1(0.0, 1);
+    vfloat64m1_t vred = __riscv_vfredusum_vs_f64m8_f64m1(vsum, vzero, vlmax);
+
+    double result = 0.0;
+    __riscv_vse64_v_f64m1(&result, vred, 1);
+
+    return result;
+}
+
+// ============================================================
+// Common LU RVV implementation
+// ============================================================
+
+using RvvAxpyNegKernel = void (*)(double *, const double *, double, int, int);
+
+static void lu_blocked_parallel_rvv_impl(
+    const Matrix &src,
+    Matrix &P,
+    Matrix &L,
+    Matrix &U,
+    int mb,
+    int nb,
+    RvvAxpyNegKernel rvv_axpy_neg)
+{
+    if (src.getRows() != src.getCols()) {
+        throw std::runtime_error("LU возможно только для квадратных матриц.");
+    }
+
+    const int n = src.getRows();
+
+    if (P.getRows() != n || P.getCols() != n ||
+        L.getRows() != n || L.getCols() != n ||
+        U.getRows() != n || U.getCols() != n) {
+        throw std::runtime_error("Output matrices P, L, U must have the same dimensions.");
+    }
+
+    if (nb <= 1) nb = 64;
+    if (mb <= 1) mb = 128;
+
+    Matrix A(src);
+    double *a = A.data();
+    const int ld = A.getCols();
+
+    auto idx = [ld](int i, int j) -> size_t {
+        return static_cast<size_t>(i) * ld + j;
+    };
+
+    auto Aat = [&](int i, int j) -> double & {
+        return a[idx(i, j)];
+    };
+
+    std::vector<int> ipiv(n);
+    for (int i = 0; i < n; ++i) {
+        ipiv[i] = i;
+    }
+
+    for (int j = 0; j < n; j += nb) {
+        int jb = std::min(nb, n - j);
+
+        // 1. Факторизация панели
+        for (int col = j; col < j + jb; ++col) {
+            int p = col;
+            double maxv = std::abs(Aat(col, col));
+
+            for (int i = col + 1; i < n; ++i) {
+                double v = std::abs(Aat(i, col));
+                if (v > maxv) {
+                    maxv = v;
+                    p = i;
+                }
+            }
+
+            if (maxv < 1e-15) {
+                throw std::runtime_error("Матрица вырождена.");
+            }
+
+            ipiv[col] = p;
+
+            if (p != col) {
+                for (int k = 0; k < n; ++k) {
+                    std::swap(Aat(col, k), Aat(p, k));
+                }
+            }
+
+            double inv = 1.0 / Aat(col, col);
+
+            for (int i = col + 1; i < n; ++i) {
+                Aat(i, col) *= inv;
+            }
+
+            double *row_col = a + idx(col, 0);
+
+            for (int i = col + 1; i < n; ++i) {
+                double lij = Aat(i, col);
+                double *row_i = a + idx(i, 0);
+
+                rvv_axpy_neg(row_i, row_col, lij, col + 1, j + jb);
+            }
+        }
+
+        if (j + jb >= n) {
+            continue;
+        }
+
+        // 2. TRSM / обновление блока строки U
+        #pragma omp parallel for schedule(static)
+        for (int i = j; i < j + jb; ++i) {
+            double *row_i = a + idx(i, 0);
+
+            for (int k = j; k < i; ++k) {
+                double lik = row_i[k];
+                const double *row_k = a + idx(k, 0);
+
+                rvv_axpy_neg(row_i, row_k, lik, j + jb, n);
+            }
+        }
+
+        // 3. GEMM обновление trailing matrix
+        #pragma omp parallel for collapse(2) schedule(static)
+        for (int ii = j + jb; ii < n; ii += mb) {
+            for (int jj = j + jb; jj < n; jj += nb) {
+                int i_end = std::min(ii + mb, n);
+                int j_end = std::min(jj + nb, n);
+
+                for (int i = ii; i < i_end; ++i) {
+                    double *row_i = a + idx(i, 0);
+
+                    for (int k = j; k < j + jb; ++k) {
+                        double lik = row_i[k];
+                        const double *row_k = a + idx(k, 0);
+
+                        rvv_axpy_neg(row_i, row_k, lik, jj, j_end);
+                    }
+                }
+            }
+        }
+    }
+
+    // Извлечение L и U
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < n; ++i) {
+        for (int j2 = 0; j2 < n; ++j2) {
+            if (i > j2) {
+                L(i, j2) = A(i, j2);
+                U(i, j2) = 0.0;
+            } else if (i == j2) {
+                L(i, j2) = 1.0;
+                U(i, j2) = A(i, j2);
+            } else {
+                L(i, j2) = 0.0;
+                U(i, j2) = A(i, j2);
+            }
+        }
+    }
+
+    // Построение P
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < n; ++i) {
+        for (int j2 = 0; j2 < n; ++j2) {
+            P(i, j2) = 0.0;
+        }
+    }
+
+    std::vector<int> perm(n);
+    for (int i = 0; i < n; ++i) {
+        perm[i] = i;
+    }
+
+    for (int i = 0; i < n; ++i) {
+        std::swap(perm[i], perm[ipiv[i]]);
+    }
+
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < n; ++i) {
+        P(i, perm[i]) = 1.0;
+    }
+}
+
+void Matrix::lu_blocked_parallel_rvv_m1(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const
+{
+    lu_blocked_parallel_rvv_impl(*this, P, L, U, mb, nb, rvv_axpy_neg_m1);
+}
+
+void Matrix::lu_blocked_parallel_rvv_m2(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const
+{
+    lu_blocked_parallel_rvv_impl(*this, P, L, U, mb, nb, rvv_axpy_neg_m2);
+}
+
+void Matrix::lu_blocked_parallel_rvv_m4(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const
+{
+    lu_blocked_parallel_rvv_impl(*this, P, L, U, mb, nb, rvv_axpy_neg_m4);
+}
+
+void Matrix::lu_blocked_parallel_rvv_m8(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const
+{
+    lu_blocked_parallel_rvv_impl(*this, P, L, U, mb, nb, rvv_axpy_neg_m8);
+}
+
+// ============================================================
+// Common Cholesky / LLt RVV implementation
+// ============================================================
+
+using RvvDotKernel = double (*)(const double *, const double *, int, int);
+
+static void cholesky_blocked_parallel_rvv_impl(
+    const Matrix &src,
+    Matrix &L,
+    int bs,
+    RvvDotKernel rvv_dot)
+{
+    if (src.getRows() != src.getCols()) {
+        throw std::runtime_error("Cholesky only for square matrices.");
+    }
+
+    const int n = src.getRows();
+
+    if (bs <= 0) {
+        bs = 48;
+    }
+
+    if (L.getRows() != n || L.getCols() != n) {
+        throw std::runtime_error("Output matrix L must have the same dimensions.");
+    }
+
+    double *A = L.data();
+    const int ld = L.getCols();
+
+    auto idx = [ld](int i, int j) -> size_t {
+        return static_cast<size_t>(i) * ld + j;
+    };
+
+    // Копируем нижний треугольник, верхний зануляем
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j <= i; ++j) {
+            A[idx(i, j)] = src(i, j);
+        }
+
+        for (int j = i + 1; j < n; ++j) {
+            A[idx(i, j)] = 0.0;
+        }
+    }
+
+    const int blocks = (n + bs - 1) / bs;
+
+    for (int bk = 0; bk < blocks; ++bk) {
+        int k = bk * bs;
+        int kend = std::min(k + bs, n);
+
+        // 1. Факторизация диагонального блока
+        for (int i = k; i < kend; ++i) {
+            double *row_i = A + idx(i, 0);
+
+            for (int j = k; j < i; ++j) {
+                double *row_j = A + idx(j, 0);
+
+                double s = row_i[j];
+                s -= rvv_dot(row_i, row_j, k, j);
+
+                row_i[j] = s / row_j[j];
+            }
+
+            double diag = row_i[i];
+            diag -= rvv_dot(row_i, row_i, k, i);
+
+            if (diag < 0.0 && diag > -1e-12) {
+                diag = 0.0;
+            }
+
+            if (diag <= 0.0) {
+                throw std::runtime_error("Matrix is not SPD");
+            }
+
+            row_i[i] = std::sqrt(diag);
+        }
+
+        if (kend >= n) {
+            break;
+        }
+
+        // 2. Вычисление L21
+        #pragma omp parallel for schedule(static)
+        for (int bi = bk + 1; bi < blocks; ++bi) {
+            int i0 = bi * bs;
+            int iend = std::min(i0 + bs, n);
+
+            for (int i = i0; i < iend; ++i) {
+                double *row_i = A + idx(i, 0);
+
+                for (int j = k; j < kend; ++j) {
+                    double *row_j = A + idx(j, 0);
+
+                    double s = row_i[j];
+                    s -= rvv_dot(row_i, row_j, k, j);
+
+                    row_i[j] = s / row_j[j];
+                }
+            }
+        }
+
+        // 3. Обновление trailing matrix
+        #pragma omp parallel for schedule(static)
+        for (int bi = bk + 1; bi < blocks; ++bi) {
+            int i0 = bi * bs;
+            int iend = std::min(i0 + bs, n);
+
+            // Диагональный блок
+            for (int i = i0; i < iend; ++i) {
+                double *row_i = A + idx(i, 0);
+
+                for (int j = i0; j <= i; ++j) {
+                    double *row_j = A + idx(j, 0);
+
+                    double s = row_i[j];
+                    s -= rvv_dot(row_i, row_j, k, kend);
+
+                    row_i[j] = s;
+                }
+            }
+
+            // Off-diagonal блоки
+            for (int bj = bk + 1; bj < bi; ++bj) {
+                int j0 = bj * bs;
+                int jend = std::min(j0 + bs, n);
+
+                for (int i = i0; i < iend; ++i) {
+                    double *row_i = A + idx(i, 0);
+
+                    for (int j = j0; j < jend; ++j) {
+                        double *row_j = A + idx(j, 0);
+
+                        double s = row_i[j];
+                        s -= rvv_dot(row_i, row_j, k, kend);
+
+                        row_i[j] = s;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Matrix::cholesky_blocked_parallel_rvv_m1(Matrix &L, int bs) const
+{
+    cholesky_blocked_parallel_rvv_impl(*this, L, bs, rvv_dot_m1);
+}
+
+void Matrix::cholesky_blocked_parallel_rvv_m2(Matrix &L, int bs) const
+{
+    cholesky_blocked_parallel_rvv_impl(*this, L, bs, rvv_dot_m2);
+}
+
+void Matrix::cholesky_blocked_parallel_rvv_m4(Matrix &L, int bs) const
+{
+    cholesky_blocked_parallel_rvv_impl(*this, L, bs, rvv_dot_m4);
+}
+
+void Matrix::cholesky_blocked_parallel_rvv_m8(Matrix &L, int bs) const
+{
+    cholesky_blocked_parallel_rvv_impl(*this, L, bs, rvv_dot_m8);
+}
+
+#else
+
+void Matrix::lu_blocked_parallel_rvv_m1(Matrix &, Matrix &, Matrix &, int, int) const
+{
+    throw std::runtime_error("RVV support is disabled. Build with -DUSE_RVV and RISC-V vector flags.");
+}
+
+void Matrix::lu_blocked_parallel_rvv_m2(Matrix &, Matrix &, Matrix &, int, int) const
+{
+    throw std::runtime_error("RVV support is disabled. Build with -DUSE_RVV and RISC-V vector flags.");
+}
+
+void Matrix::lu_blocked_parallel_rvv_m4(Matrix &, Matrix &, Matrix &, int, int) const
+{
+    throw std::runtime_error("RVV support is disabled. Build with -DUSE_RVV and RISC-V vector flags.");
+}
+
+void Matrix::lu_blocked_parallel_rvv_m8(Matrix &, Matrix &, Matrix &, int, int) const
+{
+    throw std::runtime_error("RVV support is disabled. Build with -DUSE_RVV and RISC-V vector flags.");
+}
+
+void Matrix::cholesky_blocked_parallel_rvv_m1(Matrix &, int) const
+{
+    throw std::runtime_error("RVV support is disabled. Build with -DUSE_RVV and RISC-V vector flags.");
+}
+
+void Matrix::cholesky_blocked_parallel_rvv_m2(Matrix &, int) const
+{
+    throw std::runtime_error("RVV support is disabled. Build with -DUSE_RVV and RISC-V vector flags.");
+}
+
+void Matrix::cholesky_blocked_parallel_rvv_m4(Matrix &, int) const
+{
+    throw std::runtime_error("RVV support is disabled. Build with -DUSE_RVV and RISC-V vector flags.");
+}
+
+void Matrix::cholesky_blocked_parallel_rvv_m8(Matrix &, int) const
+{
+    throw std::runtime_error("RVV support is disabled. Build with -DUSE_RVV and RISC-V vector flags.");
+}
+
+#endif

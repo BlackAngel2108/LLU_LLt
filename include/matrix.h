@@ -61,6 +61,19 @@ public:
     // Размер данных в элементах
     size_t size() const { return data_size_; }
 
+    // RVV LU blocked parallel
+    void lu_blocked_parallel_rvv_m1(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const;
+    void lu_blocked_parallel_rvv_m2(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const;
+    void lu_blocked_parallel_rvv_m4(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const;
+    void lu_blocked_parallel_rvv_m8(Matrix &P, Matrix &L, Matrix &U, int mb, int nb) const;
+
+    // RVV Cholesky / LLt blocked parallel
+    void cholesky_blocked_parallel_rvv_m1(Matrix &L, int bs = 48) const;
+    void cholesky_blocked_parallel_rvv_m2(Matrix &L, int bs = 48) const;
+    void cholesky_blocked_parallel_rvv_m4(Matrix &L, int bs = 48) const;
+    void cholesky_blocked_parallel_rvv_m8(Matrix &L, int bs = 48) const;
+
+
 private:
     int rows_;
     int cols_;
