@@ -8,8 +8,8 @@
 #include <sstream>
 #include <omp.h>
 #include "matrix.h"
-#include <cblas.h>
-#include <lapacke.h>
+//#include <cblas.h>
+//#include <lapacke.h>
 #include <unistd.h>
 #include <tuple>
 
@@ -40,7 +40,7 @@ void openblas_lu(Matrix &A)
 {
     int n = A.getRows();
     std::vector<int> ipiv(n);
-    LAPACKE_dgetrf(LAPACK_ROW_MAJOR, n, n, A.data(), n, ipiv.data());
+//    LAPACKE_dgetrf(LAPACK_ROW_MAJOR, n, n, A.data(), n, ipiv.data());
 }
 
 // Функция для Cholesky разложения через OpenBLAS
@@ -48,7 +48,7 @@ void openblas_cholesky(Matrix &A)
 {
     int n = A.getRows();
     char uplo = 'L';
-    LAPACKE_dpotrf(LAPACK_ROW_MAJOR, uplo, n, A.data(), n);
+//    LAPACKE_dpotrf(LAPACK_ROW_MAJOR, uplo, n, A.data(), n);
 }
 
 // Функция запуска одного замера для моего кода
@@ -139,7 +139,7 @@ double run_openblas_benchmark(const std::string &type, int size, int threads, in
             A = A * A_t;
         }
 
-        openblas_set_num_threads(threads);
+//        openblas_set_num_threads(threads);
 
         auto start = std::chrono::high_resolution_clock::now();
 
@@ -163,17 +163,17 @@ double run_openblas_benchmark(const std::string &type, int size, int threads, in
 // Функция для запуска бенчмарков моего кода
 void run_my_benchmarks(const std::string &results_file)
 {
-    std::vector<int> matrix_sizes = {4000};
-    std::vector<int> block_sizes = {64};
-    std::vector<int> thread_counts = {4, 5, 6, 7, 8};
+    std::vector<int> matrix_sizes = {1000, 2000, 4000, 6000, 8000};
+    std::vector<int> block_sizes = {50,100,150};
+    std::vector<int> thread_counts = {1,2,3,4, 5, 6, 7, 8};
     const int runs_per_setting = 3;
 
     std::vector<Algorithm> algorithms = {
-        //{"lu_simple", false, false, false},
-        //{"lu_blocked", false, true, false},
-        //{"lu_blocked_parallel", true, true, false},
-        //{"cholesky_simple", false, false, false},
-        //{"cholesky_blocked", false, true, false},
+        {"lu_simple", false, false, false},
+        {"lu_blocked", false, true, false},
+        {"lu_blocked_parallel", true, true, false},
+        {"cholesky_simple", false, false, false},
+        {"cholesky_blocked", false, true, false},
         {"cholesky_blocked_parallel", true, true, false}};
 
     std::ofstream f_results(results_file);

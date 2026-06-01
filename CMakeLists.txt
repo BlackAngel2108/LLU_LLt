@@ -1,103 +1,161 @@
-cmake_minimum_required(VERSION 3.23.5)
+cmake_minimum_required(VERSION 3.20.2)
 
-# Возможные компиляторы для выбора
-set(CMAKE_C_COMPILER "gcc" CACHE STRING "C compiler")
-set(CMAKE_CXX_COMPILER "g++" CACHE STRING "C++ compiler")
-
-# Intel компилятор можно будет выбрать через интерфейс
-option(USE_INTEL "Use Intel compiler" OFF)
-if(USE_INTEL)
-    set(CMAKE_C_COMPILER "icx")
-    set(CMAKE_CXX_COMPILER "icpx")
-endif()
+# ============================================================
+# Project
+# ============================================================
 
 set(PROJECT_NAME LU_LLt_project)
-project(${PROJECT_NAME})
+project(${PROJECT_NAME} C CXX)
 
-# set(CMAKE_CXX_COMPILER "icpx")
-# set(CMAKE_C_COMPILER "icx")
+# ============================================================
+# Compiler selection
+# ============================================================
 
-if(COMPILER_SUPPORTS_CXX17)
-    message( STATUS "CXX17_supported")
+option(USE_INTEL "Use Intel compiler" OFF)
+
+if(USE_INTEL)
+    set(CMAKE_C_COMPILER "icx" CACHE STRING "C compiler" FORCE)
+    set(CMAKE_CXX_COMPILER "icpx" CACHE STRING "C++ compiler" FORCE)
+else()
+    set(CMAKE_C_COMPILER "gcc" CACHE STRING "C compiler")
+    set(CMAKE_CXX_COMPILER "g++" CACHE STRING "C++ compiler")
 endif()
+
+# ============================================================
+# C++ standard
+# ============================================================
+
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Поиск OpenMP
-find_package(OpenMP REQUIRED)
-
-if(OPENMP_FOUND)
-    # Проверяем, что компилятор Intel (в разных вариантах имени)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Intel" OR 
-       CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM" OR
-       CMAKE_CXX_COMPILER MATCHES "icpx")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qopenmp")
-        message(STATUS "Using Intel OpenMP flag: -qopenmp")
-    else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-        message(STATUS "Using standard OpenMP flags: ${OpenMP_CXX_FLAGS}")
-    endif()
-endif()
-
-# Поиск OpenBLAS
-find_package(BLAS REQUIRED)
-find_package(LAPACK REQUIRED)
-
-if(BLAS_FOUND)
-    message( STATUS "BLAS_found: ${BLAS_LIBRARIES}")
-    message( STATUS "LAPACK_found: ${LAPACK_LIBRARIES}")
-endif()
-
-find_package(LAPACK REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(LAPACKE REQUIRED lapacke)
-
-if(LAPACK_FOUND)
-    message(STATUS "LAPACK found: ${LAPACK_LIBRARIES}")
-    message(STATUS "LAPACKE found: ${LAPACKE_LIBRARIES}")
-endif()
+# ============================================================
+# Build type
+# ============================================================
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Configs" FORCE)
+
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE Release)
 endif()
+
+# ============================================================
+# Output directories
+# ============================================================
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin)
 
-set(LU_LIBRARY "${PROJECT_NAME}")
-set(LU_TESTS   "test_${PROJECT_NAME}")
+# ============================================================
+# Project paths
+# ============================================================
+
+set(LU_LIBRARY "LU_LLt_lib")
 set(LU_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set(LU_TESTS "test_${PROJECT_NAME}")
 
-include_directories("${LU_INCLUDE}" gtest)
+# ============================================================
+# OpenMP
+# ============================================================
+
+find_package(OpenMP REQUIRED)
+
+if(OPENMP_FOUND)
+    if(USE_INTEL)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qopenmp")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qopenmp")
+        message(STATUS "Using Intel OpenMP flag: -qopenmp")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+        message(STATUS "Using standard OpenMP flags: ${OpenMP_CXX_FLAGS}")
+    endif()
+endif()
+
+# ============================================================
+# BLAS / LAPACK (optional)
+# ============================================================
+
+option(USE_BLAS "Use BLAS/LAPACK libraries" OFF)
+
+# Всегда инициализируем переменные
+set(BLAS_FOUND OFF)
+set(LAPACK_FOUND OFF)
+set(LAPACKE_FOUND OFF)
+
+if(USE_BLAS)
+    find_package(BLAS)
+    find_package(LAPACK)
+    find_package(PkgConfig QUIET)
+    
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(LAPACKE lapacke)
+    endif()
+    
+    if(BLAS_FOUND AND LAPACK_FOUND)
+        message(STATUS "BLAS found: ${BLAS_LIBRARIES}")
+        message(STATUS "LAPACK found: ${LAPACK_LIBRARIES}")
+        if(LAPACKE_FOUND)
+            message(STATUS "LAPACKE found: ${LAPACKE_LIBRARIES}")
+        endif()
+        add_compile_definitions(USE_BLAS)
+    else()
+        message(WARNING "BLAS/LAPACK not found. Building without BLAS support.")
+        set(USE_BLAS OFF)
+    endif()
+else()
+    message(STATUS "BLAS/LAPACK disabled by user (USE_BLAS=OFF)")
+endif()
+
+# ============================================================
+# Intel specific optimizations
+# ============================================================
+
+if(USE_INTEL)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -xHost -qopt-zmm-usage=high -ffast-math")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -xHost -qopt-zmm-usage=high -ffast-math")
+endif()
+
+# ============================================================
+# MSVC
+# ============================================================
+
+if(MSVC)
+    add_definitions(-D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
+endif()
+
+# ============================================================
+# Enable testing
+# ============================================================
 
 enable_testing()
 
-# BUILD
+# ============================================================
+# Subdirectories
+# ============================================================
+
 add_subdirectory(include)
 add_subdirectory(src)
 add_subdirectory(gtest)
 add_subdirectory(test)
 add_subdirectory(benchmark)
 
-# REPORT
-message( STATUS "")
-message( STATUS "General configuration for ${PROJECT_NAME}")
-message( STATUS "======================================")
-message( STATUS "")
-message( STATUS "   Configuration: ${CMAKE_BUILD_TYPE}")
-message( STATUS "   Compiler: ${CMAKE_CXX_COMPILER}")
-message( STATUS "   BLAS: ${BLAS_LIBRARIES}")
-message( STATUS "   LAPACK: ${LAPACK_LIBRARIES}")
-message( STATUS "")
+# ============================================================
+# Final report
+# ============================================================
 
-if( MSVC )
-  add_definitions(-D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
+message(STATUS "")
+message(STATUS "General configuration for ${PROJECT_NAME}")
+message(STATUS "======================================")
+message(STATUS "  Configuration: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  C compiler:    ${CMAKE_C_COMPILER}")
+message(STATUS "  CXX compiler:  ${CMAKE_CXX_COMPILER}")
+message(STATUS "  CXX standard:  ${CMAKE_CXX_STANDARD}")
+message(STATUS "  USE_INTEL:     ${USE_INTEL}")
+message(STATUS "  USE_BLAS:      ${USE_BLAS}")
+if(USE_BLAS)
+    message(STATUS "  BLAS:          ${BLAS_LIBRARIES}")
+    message(STATUS "  LAPACK:        ${LAPACK_LIBRARIES}")
 endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -xHost -qopt-zmm-usage=high -ffast-math")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -xHost -qopt-zmm-usage=high -ffast-math")
-endif()
+message(STATUS "")
